@@ -8,7 +8,7 @@ Status: investigation in progress. A checkbox below is not a claim of compatibil
 | KeepAlive delay | #252 | 1.5.21 generator lacks unified_delay | Generator patch prepared; isolated extended/upstream fixtures and core check pass; old LuCI control patch prepared with syntax check; browser and integration tests pending |
 | Subscription headers | #253 | Automatic User-Agent exists in 1.5.21; test HWID and device fields independently | Audit pending |
 | Invalid subscription node | #253 | Quarantine and logging need comparison | Audit pending |
-| Core status | #254 | Engine and variant detection need comparison | Audit pending |
+| Core status | #254 | Dashboard and diagnostics used legacy service name and engine ID | Patches prepared; isolated old-library engine status reports the active variant; UI test pending |
 | Priority recovery | #261 | 1.5.21 probes level members sequentially | Patch prepared; selection fixtures pass with isolated 1.5.21 libraries; recovery-cycle and live tests pending |
 | UPnP bypass | #259 | 1.5.21 watchdog has no UPnP lease sync | Backport required |
 | Subscription source migration | #250 | Live configuration uses modular sections absent from old connections module | Migration required |

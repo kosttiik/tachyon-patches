@@ -13,8 +13,10 @@ Do not apply these patches to a router until the complete migration and rollback
 - `0003-ipv6-fakeip.patch`: syntax and subnet-overlap checks pass; live IPv6 remains untested.
 - `0004-keepalive-core.patch`: generator fixtures pass for extended and upstream cores; generated extended configuration passes the installed core checker.
 - `0005-keepalive-ui.patch`: legacy settings module syntax passes; browser behavior remains untested.
-- `0006-managed-core-status.patch`: syntax passes; this changes one dashboard status path only and does not complete issue #254.
+- `0006-managed-core-status.patch`: syntax passes; this changes one dashboard status path only and is accompanied by diagnostic patch 0008; browser coverage is pending.
 
 A reverse migration from the current 1.7.0 object model, UPnP/P2P support, subscription failure isolation, and several diagnostics are still missing. This repository is not an installer and does not authorize a downgrade yet. See `docs/compatibility.md`.
 
 - `0007-zapret-dns-resolver.patch`: backports #227 resolver selection; isolated fixtures pass with 1.5.21 libraries. Live DNS behavior remains untested.
+
+- `0008-engine-status.patch`: legacy diagnostic service status; isolated 1.5.21-library read-only status test passed on the current router.

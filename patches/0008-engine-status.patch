@@ -1,0 +1,52 @@
+--- a/usr/lib/tachyon/diagnostics/system_info.uc
++++ b/usr/lib/tachyon/diagnostics/system_info.uc
+@@ -720,12 +720,31 @@
+     return module_success(DNS_APPLY_UC, [ "has-tachyon-dns" ]);
+ }
+ 
++function sing_box_variant_label() {
++    let marker = first_line_value(SB_VARIANT_STATE_FILE);
++    if (marker == "" && getenv("SB_VARIANT_STATE_FILE") == null)
++        marker = first_line_value(SB_LEGACY_VARIANT_STATE_FILE);
++    if (marker == "tachyon-core")
++        return "tachyon-core";
++    if (marker == "extended-compressed")
++        return "sing-box-extended-compressed";
++    if (marker == "extended")
++        return "sing-box-extended";
++    if (marker == "lx" || marker == "sing-box-lx")
++        return "sing-box-lx";
++    if (marker == "tiny")
++        return "sing-box-tiny";
++    if (marker == "stable")
++        return "sing-box";
++    return is_tachyon_core_selected() ? "tachyon-core" : "sing-box";
++}
++
+ function get_sing_box_status() {
+     let running = module_success(SERVICE_STATE_UC, [
+         "tachyon-core-service-stable",
+         RUNTIME_STABLE_MIN_AGE
+     ]) ? 1 : 0;
+-    let enabled = file_executable("/etc/rc.d/S99sing-box") ? 1 : 0;
++    let enabled = file_executable("/etc/rc.d/S99" + TACHYON_SERVICE_NAME) ? 1 : 0;
+     let dns_configured = dnsmasq_has_tachyon_dns() ? 1 : 0;
+     write_service_status(running, enabled, dns_configured);
+     return 0;
+@@ -748,12 +767,14 @@
+             "tachyon-core-service-stable",
+             RUNTIME_STABLE_MIN_AGE
+         ]) ? 1 : 0;
+-        let enabled = file_executable("/etc/rc.d/S99sing-box") ? 1 : 0;
++        let enabled = file_executable("/etc/rc.d/S99" + TACHYON_SERVICE_NAME) ? 1 : 0;
+         let dns_configured = dnsmasq_has_tachyon_dns() ? 1 : 0;
+         write_json({
+             running,
+             enabled,
+-            engine: "sing-box",
++            engine: "tachyon-core",
++            variant: sing_box_variant_label(),
++            managed_by: TACHYON_SERVICE_NAME,
+             status: service_status_label(running, enabled),
+             dns_configured
+         });
