@@ -1,0 +1,86 @@
+commit	date	subject	review_status
+1ff6491b7ad08a1a12ab3c9cb932f628157a545a	2026-10-30	fix(subscriptions,migration): preserve legacy subscription_url urltest defaults and respect deleted outbound_source	review
+bb45e74438268ab0228f774675ff8815d5d4309b	2026-10-30	fix(updates,telegram,subscriptions): display version transitions, preserve Xray balancer servers, and modernize Telegram bot	review
+569d545d4f175c5cb0b5e9212c026a4c80ab6b24	2026-10-30	fix(ui,updates): speed up .trs downloads, add topbar collapse & modal close button, restore native cbi-page-actions	review
+7766c75d66204033eb8d8cd2dc1b3e76d8904be2	2026-10-30	fix(ui): update all sidebar status dots and open QR modal on server cards	review
+a8095af67660bed36da24b7a5f7029c82199fed8	2026-10-30	fix(desync,ui): fix Discord UDP & auto preset override in desync, add superset list dimming	review
+cea5807832c05dcd5f6f0046f9bd593575b6ac6d	2026-10-30	fix: align backend runtime tests and reconciler UCI settings lookup	review
+d58363b1335d8215e71c7d7edd8bf12a58a899cb	2026-10-30	fix: restore update badge rendering, fix CI test and resolve open issues (#257, #261, #264, #265, #267)	review
+1143fd5be884a2baffb2eb8a631eb6509a2137d1	2026-10-30	release: 1.7.0	review
+13a449e01b77842093b93d3c437be49d1958c84c	2026-10-29	fix(core): prioritize FakeIP DNS over DNS-only sections, reject UDP on ByeDPI/TCP-desync, and silence srs match stdout	review
+7c096a87acd2684e129653f4bc212233c3db0197	2026-10-29	fix(awg): support hybrid inline WARP + .conf groups, runtime signatures, and outbound_source sync	review
+af96f24b517aadcd973599f5a74549a8db90103e	2026-10-29	fix(core): fix TUN mode inbound schema and routing, Mieru v3 multi-port firewall, and tachyon-core logs	review
+66ef145cc63a710b04adc908af2a4af9cc06592b	2026-10-28	fix(nft,mieru,watchdog): fix UPnP/DNAT P2P bypass (#256), Mieru port ranges, subscription CPU backoff, and false DoH warning	review
+6cf6e8f9814c77802292010f60d2ef0cc1e22a50	2026-10-28	fix(outbounds,awg): combine outbound_group country+regex via OR and fix AWG vpn:// / .conf import	review
+cd70727fad28098572ce6424a933519d19c5e74b	2026-10-28	feat(lite,outbounds): add Tachyon Lite eco mode and fix section pool isolation, AWG/WARP outbounds, server firewall & UI descriptions	review
+4476eec5b8f2efa21a0987f51d0628eb417505d7	2026-10-28	release: 1.6.1	review
+0da99c1b48b39090b250a93cafbe823d8f3f638d	2026-10-28	Merge pull request #251 from MaksSt/fix/section-speeds	review
+1fa7d3deb103a0274a255ff177f236326a562c04	2026-10-28	fix(dashboard): считать скорости трафика для каждой секции	review
+04f14dd0fd6d3d6d7fe5c55f83e93a79ab34e9ae	2026-10-27	fix(tests,watchdog): include section_linked_condition_domains in smart_detect slice and leaf option helpers in contract matrix	review
+1750b19ea6659660aeccdb46091fe60524419076	2026-10-27	Merge pull request #246 from lQwestl/feat/inbound-clients-modal	review
+32348aaf785493926f632a2b706d5d3d7787a567	2026-10-27	feat(modular,telegram,diagnostics): full modular sections/conditions/sources/balancers support and tachyon-core update labels	review
+6b063cff3fa080c54e2c56c3bbd13140c5b74ace	2026-10-27	Merge pull request #249 from ModernSolutionsGroup74/patch-1	review
+11678bb796eb95243f25e62e75ddcc5407789f21	2026-10-27	fix(fuzzer): detach watchdog sleeper from caller stderr (fixes #248)	review
+7be9fc7dc5147f8c9239c4d7963ce9fc6fba15bd	2026-10-27	feat(smart-detect): support group sections as domain rule targets (fixes #247)	review
+4ef9e8c94f54be7397b1516273031f33c30caa08	2026-10-27	fix(tests): export WORK_DIR in dnat_port_forward_nft to prevent CI loop	review
+e603d6ea4eec55e3afecfc6ec7e8970252b15966	2026-10-27	style: prettier reformat types.ts union type	review
+c3b53d23331318afcf09081119666bdbd4db44b6	2026-10-27	fix(ci): guard nft --check with timeout to prevent CI deadlock	review
+e490904e2afb1e76b125fbd94d2a178d780e7754	2026-10-27	fix(dashboard): show 'Bypass Active' instead of N/A for desync/service sections	review
+1a09693aed69d282059e8e680b5dc24ea3028f04	2026-10-27	fix(ui,dashboard,migration): connection type column, desync status, zapret2 signature, ip_cidr normalization	review
+dd74385b9a281e8fd5f8feb73452771c4a5b0048	2026-10-27	feat(dashboard): redesign inbound servers widget with connected hosts modal	review
+781c686f040439c501514de75138c8bdf563254a	2026-10-27	fix(dpi): набор с адресами и закрытый режим geoip оставляют настоящий адрес	review
+c6388f0ebb633a6015ef57c524868f7797f3804a	2026-10-27	style(dashboard): форматирование по prettier	review
+b455070e944c65be506e78435cd9c192d4a75d95	2026-10-27	feat(dashboard): неудачная проверка задержки показывает причину	review
+974dabc9cd7eb7e105fe21bd6f1ada4f270c137c	2026-10-27	build(tests): node UI checks join the shared test run, add the build image	review
+a3f88b997e55246a8f7cb300cabdb1a8cc676e68	2026-10-27	fix(telegram,service): speak the modular layout, come back after a network restart	review
+078360db418dea2aab53238655bc1b5cd47674b6	2026-10-27	fix(priority): keep the failed node out of the replacement search	review
+68d79c4de0b69e54da88b03ee055c0df988bdc2d	2026-10-27	fix(priority): pick the fastest node of a tier instead of the first one	review
+39599044265c459d9e6210563b6e1c35abf17521	2026-10-27	fix(subscription,core): keep the ML-KEM flag, gate native desync by core version	review
+b437009d33d32971a18680f03a21b2eeeead9367	2026-10-27	fix(tests,generator): repair CI guards, migration list and module-local helpers	review
+860e81c3b8c8a9886485e071c72d4c72864f4da5	2026-10-27	fix(dpi): preserve FakeIP interception with routed DNS	review
+1b7ebb8e5ad3c1109b0311fad48a5dd52b039182	2026-10-27	feat(core,ui): modular redesign of sections, outbounds, conditions and balancers	review
+41287729dacce9caf7b8f607f5dcad8ec136926f	2026-10-26	fix(ui,diagnostic): normalize domains to lowercase in routing rule tracer	review
+4f3f5ce288c296495c9210b9dccd50dc20141e69	2026-10-26	fix(routing): prevent UDP blackholing and handle routed DNS for forced device routing	review
+75ca0eb12e4edea7050efd585704c773ef1b1434	2026-10-25	feat(telegram): allow emergency recovery commands, reload, and section deletion via bot	review
+de44099b016176a42431cc86023b81c3ab490c36	2026-10-25	feat(routing,section): add full tunnel strategy, standalone mixed proxy, and fix AWG 3.1 checkbox sync	review
+f14584ba199ba82fb3e64d2accfe6fb7eabf2e74	2026-10-25	feat(failover): add separate check/recover intervals and expected HTTP status for section fail policy (fixes #238)	review
+440276f710207cc2909588701a0c4a4f165854e5	2026-10-25	feat(section): expose interrupt_exist_connections and urltest options for action group (fixes #239)	review
+490c9c1d94a5927d3526b58eb3454540ef1f795c	2026-10-25	fix(nft): prevent DNAT port forwarding capture and drop in fw4 forward	review
+f3c7fc91009bdffafeb06d2ad22c6bde86f31c4d	2026-10-25	fix(service,nft): auto-recover routing on network restart and fix QUIC tunneled block mode	review
+6b9b747cfb266257d19e6c947e13723f406bd4ad	2026-10-25	fix(fuzzer): eliminate synchronous cleanup delays and handle XHR timeout gracefully	review
+d1370ee12894b45c68b696c677fd8a6230f0009c	2026-10-25	fix(service): restore dnsmasq failsafe on unclean start and boot	review
+237f802a6cc9b40c4e6342a65125e81d7065ee48	2026-10-25	fix: resolve installation, uninstallation, DNS rebind and ubus errors from field report	review
+ae37394c0abf220536c71d1f590a5bd9a8767a29	2026-10-25	fix(dashboard): eliminate scroll jumping and teleportation on Footstrap theme (#241)	review
+42642a16276e8f7953c8cebeb61d09b829529a04	2026-10-25	fix(installer): add robust GitHub mirrors and certificate fallback for fresh installs	review
+6b9497010cc87baf80cbfcc43adc01965699fd73	2026-10-25	chore(deps): bump @vitest/mocker	review
+0597e42f8f9622137f570e2281756547e5ecd7af	2026-10-25	fix(components): resolve package revision discrepancy between apk and release assets (fixes #236)	review
+247bc13453b3b44ead133d77b5634040dc734bfb	2026-10-25	fix(settings): support github_pat_ tokens and prevent password manager autofill on secret inputs	review
+0c280ab9cff9416471f221bfe20867eaa460e72e	2026-10-25	feat(dashboard,settings): add country chips latency display mode (min/max)	review
+4092b7d3274031447c226963cbe0103714eb8d7d	2026-10-24	feat(dashboard): harmonize tile sizes, uniform badge heights, route badges, and fix session traffic	review
+af6903f5e74b2de16f9ff17b9d25c2f0d2dd667c	2026-10-25	fix(server): fix Reality cert and XHTTP inbound handling on sing-box-lx & quarantine broken servers (#233, #234)	review
+f7778b1674c4eae6da0b813a68800991c6b90311	2026-10-25	fix(dashboard,cache): remove country text badge on cards, restore protocol breakdown popover and section-cache rebuild	review
+b2d20e9eb027a07be49afb8b01b7e35431836849	2026-10-24	feat(failover,dashboard): per-section fail policy probe urls/recovery (#231) and active clients polish (#232)	review
+a28268a5ac6ebd9848423b172f4ed37a9d6d9585	2026-10-24	feat(server,dashboard,dns,tailscale): full protocol autoconfig, compact inbounds widget, country flags, zapret2 DNS fix, tailscale firewall (#223, #227, #228, #229, #230)	review
+6b7f2492d2237d15ae7df6662a16b9811a3fe4b3	2026-10-24	chore(locales): synchronize after dashboard PR merges	review
+ad66ecc41be2c97b5e57983fe857287c95a28dfe	2026-10-24	fix(dashboard): wire PR 225 latency pill, drop dead badge var	review
+d6d223f429ebb40e644777cbe2528f35a1feece9	2026-10-24	build(dashboard): rebuild main.js after PR #220-#225 merges	review
+92ae5988a2623f99ac5ad66318c4b03001d0213e	2026-10-24	merge PR #225: dashboard typography harmonization, active clients redesign	review
+09bb10a7169b855238543c41f126188363c1ad60	2026-10-24	style(dashboard): reformat protocol pill hunk	review
+e13dbcd8d8d728ff1edfc5b371c620f3bdd6091f	2026-10-24	merge PR #224: uptime and protocol badges in uplink blue accent	review
+040469b334adc69b8e42f23b23666abc7c89fec0	2026-10-24	merge PR #222: keep system widget visible when service stopped	review
+b476dbe9aa5ef7612935b9343e795ef7b723da54	2026-10-24	merge PR #221: theme-aware protocol popover, high-contrast region filter	review
+c216941c118aae564d41eef1428bfc062b68f8b9	2026-10-24	merge PR #220: eliminate dashboard scroll jumps	review
+c6099aba5a96b2030511e817e4c40fc3ec2f8634	2026-10-24	fix(components) (#219)	review
+d8276875d98c423f267e194009e3dc3077202ec9	2026-10-24	fix(luci) (#218)	review
+cb41ff6e3f920076b99eb5fd05f54442db06dfae	2026-10-24	fix(core,server,updates): tachyon-core inbound schemas, engine switch crash, GitHub token (#226)	review
+51f94e5b1e796fe310e9c23a856963f23bdfcdb5	2026-10-24	fix(dashboard): eliminate scroll jumps and jitters with in-place updates and scroll-deferral	review
+7222b03fd0834105375ac6e0cc7bc8e0621ac61a	2026-10-23	feat(dashboard): add pill badges for mode, latency, traffic and colorize active clients	review
+7f9cc80eb0c5a8a85dee9a769cce0d95128ab7f6	2026-10-23	feat(dashboard): harmonize typography, traffic arrows and redesign active clients	review
+7c466a47a09da2628ffc07b719cf6e08b917f0f9	2026-10-23	feat(dashboard): style uptime and protocol badges in uplink blue accent	review
+4adfed6c49e831dca2bb8896204db8d54ba2c5a6	2026-10-23	feat(dashboard): style uptime and protocol badges in uplink blue accent	review
+b7e06a694521f83d2aff5940fcecf23820a6ad3d	2026-10-23	feat(dashboard): keep system widget visible when service is stopped	review
+02e3c1586d58d5a642bd7f79a28d347573425521	2026-10-23	style(test): format formatOutboundType.test.ts	review
+48d1f55e23cf007616e818a35dae4d87dd3c1e6a	2026-10-23	fix(dashboard): theme-aware protocol popover and high-contrast region filter	review
+5b2071322d3c7946cbd92a13ec0eb09bfcadfcd5	2026-10-23	fix(components): avoid passing proxy env during local package file installation	review
+fb880539d3c9599154af54b238ffa013421ed118	2026-10-23	fix(luci): prevent server info modal text and layout overflow	review
+889990f55d47727b42ef41cd0a1c6a228d748aa9	2026-10-23	feat(luci): expand and redesign server info modal	review
