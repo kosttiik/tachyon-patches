@@ -1,1 +1,0 @@
-{"settings": {".name": "settings", ".type": "settings", "enabled": "1", "dns_type": "udp", "dns_server": "1.1.1.1", "service_listen_address": "127.0.0.1", "latency_test_mode": "keepalive"}, "section": [{".name": "sec_route", ".type": "section", "enabled": "1", "action": "connection", "outbound_jsons": ["{\"type\":\"direct\",\"tag\":\"sec_route-out\"}"]}]}
