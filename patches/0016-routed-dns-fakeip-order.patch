@@ -1,0 +1,162 @@
+--- a/usr/lib/tachyon/tachyon_core/generator_routes.uc
++++ b/usr/lib/tachyon/tachyon_core/generator_routes.uc
+@@ -2510,6 +2510,25 @@
+         return core_ip.CLOUDFLARE_SHARED_CIDRS || [];
+ 
+     return [];
++}
++
++function push_section_dns_matcher_rule(config, section, rule, excluded_cidrs, domain_rule_set_tags) {
++    let action = option(section, "action", "");
++    let routed_tag = routed_dns_server_tag(section[".name"]);
++    if ((action == "zapret" || action == "zapret2" || action == "byedpi") &&
++        connections.routed_dns_enabled(section) && rule.server == routed_tag &&
++        !connections.geoip_country_mode_is_closed(section) && !rule.match_response &&
++        (rule.rule_set == null || length(domain_rule_set_tags) > 0)) {
++        let fakeip_rule = {};
++        for (let key, value in rule)
++            fakeip_rule[key] = value;
++        if (rule.rule_set != null)
++            fakeip_rule.rule_set = single_or_array(domain_rule_set_tags);
++        fakeip_rule.server = runtime_constants.FAKEIP_DNS_SERVER_TAG;
++        add_fakeip_query_type(fakeip_rule, fakeip_rule.server, section_is_ipv4_only_dpi(section));
++        push_dns_matcher_rule(config, apply_excluded_source_ips(fakeip_rule, excluded_cidrs));
++    }
++    push_dns_matcher_rule(config, apply_excluded_source_ips(rule, excluded_cidrs));
+ }
+ 
+ function add_combined_route_for_section(config, section) {
+@@ -2524,6 +2543,7 @@
+     let rule_set_tags = [];
+     let dns_query_rule_set_tags = [];
+     let dns_response_rule_set_tags = [];
++    let dns_non_domain_query_tags = [];
+     let section_name = section[".name"];
+ 
+     add_excluded_protocol_rule(config, section);
+@@ -2536,9 +2556,11 @@
+         let service = as_string(community);
+         let ensured = ensure_community_ruleset(config, section_name, service);
+         push(rule_set_tags, ensured.tag);
+-        if (ensured.kind == "domains" || service == "discord")
++        if (ensured.kind == "domains" || service == "discord") {
+             push(dns_query_rule_set_tags, ensured.tag);
+-        else if (ensured.kind == "mixed")
++            if (ensured.kind != "domains")
++                push(dns_non_domain_query_tags, ensured.tag);
++        } else if (ensured.kind == "mixed")
+             push(dns_response_rule_set_tags, ensured.tag);
+ 
+         if (include_community_subnets) {
+@@ -2556,9 +2578,11 @@
+         if (ensured == null)
+             continue;
+         push(rule_set_tags, ensured.tag);
+-        if (ensured.kind == "domains" || ref_str == "discord" || ref_str == "community-discord")
++        if (ensured.kind == "domains" || ref_str == "discord" || ref_str == "community-discord") {
+             push(dns_query_rule_set_tags, ensured.tag);
+-        else if (ensured.kind == "mixed")
++            if (ensured.kind != "domains")
++                push(dns_non_domain_query_tags, ensured.tag);
++        } else if (ensured.kind == "mixed")
+             push(dns_response_rule_set_tags, ensured.tag);
+     }
+     for (let reference in connections.rule_sets_with_subnets(section)) {
+@@ -2567,9 +2591,11 @@
+         if (ensured == null)
+             continue;
+         push(rule_set_tags, ensured.tag);
+-        if (ensured.kind == "domains" || ref_str == "discord" || ref_str == "community-discord")
++        if (ensured.kind == "domains" || ref_str == "discord" || ref_str == "community-discord") {
+             push(dns_query_rule_set_tags, ensured.tag);
+-        else if (ensured.kind == "mixed")
++            if (ensured.kind != "domains")
++                push(dns_non_domain_query_tags, ensured.tag);
++        } else if (ensured.kind == "mixed")
+             push(dns_response_rule_set_tags, ensured.tag);
+     }
+     add_domain_ip_list_ruleset(
+@@ -2582,6 +2608,11 @@
+         false
+     );
+ 
++    let domain_only_dns_tags = [];
++    for (let tag in dns_query_rule_set_tags)
++        if (index(dns_non_domain_query_tags, tag) < 0)
++            push(domain_only_dns_tags, tag);
++
+     let override = section_fail_policy_override_target(section);
+     let target = override ||
+         runtime_route.target(section, group_outbound_tag_for_section(section) || outbound_tag(section_name));
+@@ -2734,7 +2765,7 @@
+             add_fakeip_query_type(dns_rule, dns_server_tag, ipv4_only_dpi);
+             add_domain_array(dns_rule, key, values);
+             add_source_dns_matchers(dns_rule, source_ip_cidr);
+-            push_dns_matcher_rule(config, apply_excluded_source_ips(dns_rule, excluded_cidrs));
++            push_section_dns_matcher_rule(config, section, dns_rule, excluded_cidrs, domain_only_dns_tags);
+             if (ipv4_only_dpi) {
+                 let aaaa_rule = {
+                     action: "route",
+@@ -2744,7 +2775,7 @@
+                 };
+                 add_domain_array(aaaa_rule, key, values);
+                 add_source_dns_matchers(aaaa_rule, source_ip_cidr);
+-                push_dns_matcher_rule(config, apply_excluded_source_ips(aaaa_rule, excluded_cidrs));
++                push_section_dns_matcher_rule(config, section, aaaa_rule, excluded_cidrs, domain_only_dns_tags);
+             }
+         }
+     }
+@@ -2759,7 +2790,7 @@
+             };
+             add_fakeip_query_type(dns_rule, dns_server_tag, ipv4_only_dpi);
+             add_source_dns_matchers(dns_rule, source_ip_cidr);
+-            push_dns_matcher_rule(config, apply_excluded_source_ips(dns_rule, excluded_cidrs));
++            push_section_dns_matcher_rule(config, section, dns_rule, excluded_cidrs, domain_only_dns_tags);
+             if (ipv4_only_dpi) {
+                 let aaaa_rule = {
+                     action: "route",
+@@ -2769,7 +2800,7 @@
+                     rule_set: single_or_array(dns_query_rule_set_tags)
+                 };
+                 add_source_dns_matchers(aaaa_rule, source_ip_cidr);
+-                push_dns_matcher_rule(config, apply_excluded_source_ips(aaaa_rule, excluded_cidrs));
++                push_section_dns_matcher_rule(config, section, aaaa_rule, excluded_cidrs, domain_only_dns_tags);
+             }
+         }
+         if (length(dns_response_rule_set_tags) > 0) {
+@@ -2778,7 +2809,7 @@
+                 server: runtime_constants.DNS_SERVER_TAG
+             };
+             add_source_dns_matchers(eval_rule, source_ip_cidr);
+-            push_dns_matcher_rule(config, apply_excluded_source_ips(eval_rule, excluded_cidrs));
++            push_section_dns_matcher_rule(config, section, eval_rule, excluded_cidrs, domain_only_dns_tags);
+ 
+             let dns_rule = {
+                 action: "route",
+@@ -2788,7 +2819,7 @@
+                 match_response: true
+             };
+             add_source_dns_matchers(dns_rule, source_ip_cidr);
+-            push_dns_matcher_rule(config, apply_excluded_source_ips(dns_rule, excluded_cidrs));
++            push_section_dns_matcher_rule(config, section, dns_rule, excluded_cidrs, domain_only_dns_tags);
+         }
+     }
+     else {
+@@ -2807,7 +2838,7 @@
+             };
+             add_fakeip_query_type(dns_rule, dns_server_tag, ipv4_only_dpi);
+             add_source_dns_matchers(dns_rule, source_ip_cidr);
+-            push_dns_matcher_rule(config, apply_excluded_source_ips(dns_rule, excluded_cidrs));
++            push_section_dns_matcher_rule(config, section, dns_rule, excluded_cidrs, domain_only_dns_tags);
+             if (ipv4_only_dpi) {
+                 let aaaa_rule = {
+                     action: "route",
+@@ -2817,7 +2848,7 @@
+                     rule_set: single_or_array(all_dns_tags)
+                 };
+                 add_source_dns_matchers(aaaa_rule, source_ip_cidr);
+-                push_dns_matcher_rule(config, apply_excluded_source_ips(aaaa_rule, excluded_cidrs));
++                push_section_dns_matcher_rule(config, section, aaaa_rule, excluded_cidrs, domain_only_dns_tags);
+             }
+         }
+     }

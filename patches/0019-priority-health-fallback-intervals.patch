@@ -1,0 +1,182 @@
+--- a/usr/lib/tachyon/tachyon_core/priority.uc
++++ b/usr/lib/tachyon/tachyon_core/priority.uc
+@@ -23,6 +23,7 @@
+ const PRIORITY_PID_FILE = getenv("TACHYON_PRIORITY_PID_FILE") || RUNTIME_STATE_DIR + "/priority.pid";
+ const PRIORITY_UC = getenv("TACHYON_PRIORITY_UC") || LIB_DIR + "/tachyon_core/priority.uc";
+ const DIAGNOSTICS_UC = getenv("TACHYON_DIAGNOSTICS_UC") || LIB_DIR + "/diagnostics/runtime.uc";
++const PRIORITY_HEALTH_FALLBACK_URL = "https://www.google.com/generate_204";
+ 
+ let ensure_dir = common.ensure_dir;
+ let file_first_line = common.file_first_line;
+@@ -103,13 +104,13 @@
+         tag: as_string(group.tag || tag_name),
+         section: as_string(group.section || ""),
+         displayName: as_string(group.displayName || group.name || tag_name),
+-        health_url: as_string(group.health_url || "https://www.gstatic.com/generate_204"),
+-        active_check_interval: as_string(group.active_check_interval || "5s"),
++        health_url: as_string(group.health_url || "https://cp.cloudflare.com/generate_204"),
++        active_check_interval: as_string(group.active_check_interval || "10s"),
+         check_timeout: as_string(group.check_timeout || "2s"),
+-        recovery_check_interval: as_string(group.recovery_check_interval || "15s"),
++        recovery_check_interval: as_string(group.recovery_check_interval || "30s"),
+         pick_fastest: bool_value(group.pick_fastest, false),
+         switch_to_faster_same_priority: bool_value(group.switch_to_faster_same_priority, false),
+-        fastest_check_interval: as_string(group.fastest_check_interval || "3m"),
++        fastest_check_interval: as_string(group.fastest_check_interval || "5m"),
+         levels
+     };
+ }
+@@ -195,7 +196,7 @@
+         if (action == "get_proxy_latency") {
+             let tag_name = as_string(args[1] || "");
+             let timeout_ms = as_string(args[2] || "2000");
+-            let health_url = as_string(args[3] || "https://www.gstatic.com/generate_204");
++            let health_url = as_string(args[3] || "https://cp.cloudflare.com/generate_204");
+             let max_time = int((int(timeout_ms, 10) + 1999) / 1000);
+             if (max_time < 2) max_time = 2;
+             let endpoint = index(tag_name, "-urltest-") >= 0
+@@ -277,15 +278,20 @@
+     let check_timeout = type(live) == "object" && live[".type"] == "priority_group"
+         ? common.option(live, "check_timeout", group.check_timeout) : group.check_timeout;
+     let timeout = as_string(duration_to_milliseconds(check_timeout, 2000));
+-    let result = module_capture([ "get_proxy_latency", tag_name, timeout, group.health_url ]);
+-    if (result.status != 0)
+-        return { alive: false, delay: 0 };
+-
+-    let delay = parse_delay_output(result.output);
+-    if (delay == null)
+-        return { alive: false, delay: 0 };
+-
+-    return { alive: true, delay };
++    let urls = [ group.health_url ];
++    if (group.health_url != PRIORITY_HEALTH_FALLBACK_URL)
++        push(urls, PRIORITY_HEALTH_FALLBACK_URL);
++    for (let health_url in urls) {
++        let result = module_capture([ "get_proxy_latency", tag_name, timeout, health_url ]);
++        if (result.status != 0)
++            continue;
++
++        let delay = parse_delay_output(result.output);
++        if (delay != null)
++            return { alive: true, delay };
++    }
++
++    return { alive: false, delay: 0 };
+ }
+ 
+ function fixture_probe(latencies, tag_name) {
+@@ -545,8 +551,8 @@
+             dwell_seconds: 120
+         }),
+         nextActiveCheck: now_seconds(),
+-        nextRecoveryCheck: now_seconds() + duration_to_seconds(group.recovery_check_interval, 15),
+-        nextFastestCheck: now_seconds() + duration_to_seconds(group.fastest_check_interval, 180)
++        nextRecoveryCheck: now_seconds() + duration_to_seconds(group.recovery_check_interval, 30),
++        nextFastestCheck: now_seconds() + duration_to_seconds(group.fastest_check_interval, 300)
+     };
+ }
+ 
+@@ -560,7 +566,7 @@
+             state.guard.escalated_at = now;
+             state.guard.ok_streak = 0;
+         }
+-        state.nextActiveCheck = now + duration_to_seconds(group.active_check_interval, 5);
++        state.nextActiveCheck = now + duration_to_seconds(group.active_check_interval, 10);
+         return;
+     }
+ 
+@@ -577,7 +583,7 @@
+                 reachability_guard.observe(state.guard, { direct_domestic: true, direct_foreign: false, tunnel_foreign: false, now: now });
+             // Ignore isolated health-check timeouts.
+             if (defer_active_failure(state)) {
+-                state.nextActiveCheck = now + duration_to_seconds(group.active_check_interval, 5);
++                state.nextActiveCheck = now + duration_to_seconds(group.active_check_interval, 10);
+                 return;
+             }
+             let selected = choose_from_level_range(
+@@ -594,15 +600,15 @@
+                     state.guard.ok_streak = 0;
+                     push(state.guard.transitions, now);
+                 }
+-                state.nextRecoveryCheck = now + duration_to_seconds(group.recovery_check_interval, 15);
+-                state.nextFastestCheck = now + duration_to_seconds(group.fastest_check_interval, 180);
++                state.nextRecoveryCheck = now + duration_to_seconds(group.recovery_check_interval, 30);
++                state.nextFastestCheck = now + duration_to_seconds(group.fastest_check_interval, 300);
+             }
+             else {
+                 state.active = "";
+                 state.levelIndex = -1;
+             }
+         }
+-        state.nextActiveCheck = now + duration_to_seconds(group.active_check_interval, 5);
++        state.nextActiveCheck = now + duration_to_seconds(group.active_check_interval, 10);
+     }
+ 
+     if (state.active != "" && state.levelIndex > 0 && now >= state.nextRecoveryCheck) {
+@@ -618,15 +624,15 @@
+             ready_to_return = (selected != null && !snap.escalated);
+         }
+         if (ready_to_return && switch_group(state, group, selected))
+-            state.nextFastestCheck = now + duration_to_seconds(group.fastest_check_interval, 180);
+-        state.nextRecoveryCheck = now + duration_to_seconds(group.recovery_check_interval, 15);
++            state.nextFastestCheck = now + duration_to_seconds(group.fastest_check_interval, 300);
++        state.nextRecoveryCheck = now + duration_to_seconds(group.recovery_check_interval, 30);
+     }
+ 
+     if (state.active != "" && group.switch_to_faster_same_priority && now >= state.nextFastestCheck) {
+         let selected = choose_fastest_same_level(group, state.levelIndex, state.active, clash_probe);
+         if (selected != null)
+             switch_group(state, group, selected);
+-        state.nextFastestCheck = now + duration_to_seconds(group.fastest_check_interval, 180);
++        state.nextFastestCheck = now + duration_to_seconds(group.fastest_check_interval, 300);
+     }
+ }
+ 
+@@ -636,10 +642,10 @@
+         return 0;
+ 
+     let states = {};
+-    let min_interval = 5;
++    let min_interval = 10;
+     for (let group in groups) {
+         states[group.tag] = init_group_state(group);
+-        let interval = duration_to_seconds(group.active_check_interval, 5);
++        let interval = duration_to_seconds(group.active_check_interval, 10);
+         if (interval < min_interval)
+             min_interval = interval;
+     }
+--- a/usr/lib/tachyon/config/connections.uc
++++ b/usr/lib/tachyon/config/connections.uc
+@@ -1502,12 +1502,12 @@
+ 
+ function priority_group_health_url(section, value) {
+     let child = priority_group_child(section, value);
+-    return child != null ? child_option(child, "health_url", "https://www.gstatic.com/generate_204") : "https://www.gstatic.com/generate_204";
++    return child != null ? child_option(child, "health_url", "https://cp.cloudflare.com/generate_204") : "https://cp.cloudflare.com/generate_204";
+ }
+ 
+ function priority_group_active_check_interval(section, value) {
+     let child = priority_group_child(section, value);
+-    return child != null ? child_option(child, "active_check_interval", "5s") : "5s";
++    return child != null ? child_option(child, "active_check_interval", "10s") : "10s";
+ }
+ 
+ function priority_group_check_timeout(section, value) {
+@@ -1517,7 +1517,7 @@
+ 
+ function priority_group_recovery_check_interval(section, value) {
+     let child = priority_group_child(section, value);
+-    return child != null ? child_option(child, "recovery_check_interval", "15s") : "15s";
++    return child != null ? child_option(child, "recovery_check_interval", "30s") : "30s";
+ }
+ 
+ function priority_group_pick_fastest(section, value) {
+@@ -1532,7 +1532,7 @@
+ 
+ function priority_group_fastest_check_interval(section, value) {
+     let child = priority_group_child(section, value);
+-    return child != null ? child_option(child, "fastest_check_interval", "3m") : "3m";
++    return child != null ? child_option(child, "fastest_check_interval", "5m") : "5m";
+ }
+ 
+ function priority_group_interrupt_exist_connections(section, value) {

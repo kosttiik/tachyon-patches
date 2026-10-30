@@ -1,0 +1,22 @@
+--- a/usr/lib/tachyon/config/connections.uc
++++ b/usr/lib/tachyon/config/connections.uc
+@@ -1522,7 +1522,7 @@
+ 
+ function priority_group_pick_fastest(section, value) {
+     let child = priority_group_child(section, value);
+-    return child != null ? child_bool(child, "pick_fastest", false) : false;
++    return child != null ? child_bool(child, "pick_fastest", true) : true;
+ }
+ 
+ function priority_group_switch_to_faster_same_priority(section, value) {
+--- a/usr/lib/tachyon/tachyon_core/priority.uc
++++ b/usr/lib/tachyon/tachyon_core/priority.uc
+@@ -108,7 +108,7 @@
+         active_check_interval: as_string(group.active_check_interval || "10s"),
+         check_timeout: as_string(group.check_timeout || "2s"),
+         recovery_check_interval: as_string(group.recovery_check_interval || "30s"),
+-        pick_fastest: bool_value(group.pick_fastest, false),
++        pick_fastest: bool_value(group.pick_fastest, true),
+         switch_to_faster_same_priority: bool_value(group.switch_to_faster_same_priority, false),
+         fastest_check_interval: as_string(group.fastest_check_interval || "5m"),
+         levels

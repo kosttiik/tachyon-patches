@@ -1,0 +1,40 @@
+--- a/usr/lib/tachyon/tachyon_core/generator_routes.uc
++++ b/usr/lib/tachyon/tachyon_core/generator_routes.uc
+@@ -2375,7 +2375,19 @@
+         for (let k, v in rule)
+             udp_rule[k] = v;
+         delete udp_rule.outbound;
+-        udp_rule.action = "reject";
++        let source_only = !!rule.source_ip_cidr;
++        for (let key in keys(rule)) {
++            if (key == "source_ip_cidr" || key == "inbound" || ACTION_KEYS[key] || substr(key, 0, 2) == "__")
++                continue;
++            source_only = false;
++            break;
++        }
++        if (source_only) {
++            udp_rule.action = "route";
++            udp_rule.outbound = runtime_constants.DIRECT_OUTBOUND_TAG;
++        } else {
++            udp_rule.action = "reject";
++        }
+         udp_rule.network = "udp";
+         push_route_matcher_rule(config, apply_filters(udp_rule));
+ 
+@@ -2422,6 +2434,16 @@
+         route_rule.outbound = target.outbound;
+     route_rule.source_ip_cidr = single_or_array(source_ip_cidr);
+     push_section_route_rule(config, route_rule, target.outbound);
++
++    if (connections.routed_dns_enabled(section)) {
++        let dns_rule = {
++            action: "route",
++            server: runtime_constants.tag(section[".name"], "routed-dns-server"),
++            rewrite_ttl: int_option(ctx.runtime_settings(), "dns_rewrite_ttl", "60")
++        };
++        add_source_dns_matchers(dns_rule, source_ip_cidr);
++        push_dns_matcher_rule(config, dns_rule);
++    }
+ }
+ 
+ function add_excluded_ips_rule(config, section) {

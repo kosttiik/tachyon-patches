@@ -1,0 +1,11 @@
+--- a/usr/lib/tachyon/subscription/parser.uc
++++ b/usr/lib/tachyon/subscription/parser.uc
+@@ -774,6 +774,8 @@
+         let mlkem_preference = query.support_x25519mlkem768;
+         if (mlkem_preference == null)
+             mlkem_preference = query.supportX25519MLKEM768;
++        if (mlkem_preference == null)
++            mlkem_preference = query["support-x25519mlkem768"];
+         if (mlkem_preference != null)
+             tls.reality.support_x25519mlkem768 = is_true(mlkem_preference);
+     }

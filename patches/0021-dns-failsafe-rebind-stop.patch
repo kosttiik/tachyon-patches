@@ -1,0 +1,108 @@
+--- a/usr/lib/tachyon/dns/apply.uc
++++ b/usr/lib/tachyon/dns/apply.uc
+@@ -283,6 +283,16 @@
+     uci_delete("dhcp.@dnsmasq[0].tachyon_notinterface");
+ }
+ 
++function sing_box_dns_listening() {
++    let udp = fs.readfile("/proc/net/udp") || "";
++    for (let line in split(udp, "\n")) {
++        let fields = split(trim(line), /[ \t]+/);
++        if (length(fields) > 1 && lc(fields[1]) == "2a00007f:0035")
++            return true;
++    }
++    return false;
++}
++
+ function dnsmasq_configure_default_instance() {
+     let default_has_tachyon_dns = dnsmasq_default_has_tachyon_dns();
+ 
+@@ -293,11 +303,13 @@
+     }
+ 
+     backup_dnsmasq_config_option("addn_hosts", "tachyon_addn_hosts");
++    backup_dnsmasq_config_option("rebind_protection", "tachyon_rebind_protection");
+     uci_delete("dhcp.@dnsmasq[0].addn_hosts");
+ 
+     uci_delete("dhcp.@dnsmasq[0].server");
+     uci_add_list("dhcp.@dnsmasq[0].server", SB_DNS_INBOUND_ADDRESS);
+     uci_set("dhcp.@dnsmasq[0].noresolv", "1");
++    uci_set("dhcp.@dnsmasq[0].rebind_protection", "0");
+     uci_set("dhcp.@dnsmasq[0].cachesize", dnsmasq_target_cachesize());
+ }
+ 
+@@ -331,6 +343,12 @@
+         restore_dnsmasq_config_option("cachesize", "tachyon_cachesize", "");
+     else if (managed_global_dns)
+         uci_set("dhcp.@dnsmasq[0].cachesize", "150");
++
++    let rebind_protection = uci_get("dhcp.@dnsmasq[0].tachyon_rebind_protection");
++    if (rebind_protection != "")
++        restore_dnsmasq_config_option("rebind_protection", "tachyon_rebind_protection", "");
++    else if (managed_global_dns)
++        uci_set("dhcp.@dnsmasq[0].rebind_protection", "1");
+ 
+     restore_dnsmasq_config_option("addn_hosts", "tachyon_addn_hosts", "");
+ }
+@@ -410,6 +428,10 @@
+         let sb_pid = sing_box_running_pid();
+         if (sb_pid == "") {
+             log("sing-box is not running; dnsmasq will forward to system DNS until sing-box starts", "warn");
++            return true;
++        }
++        if (!sing_box_dns_listening()) {
++            log("sing-box DNS inbound (127.0.0.42:53) is not listening yet; dnsmasq will forward to system DNS", "warn");
+             return true;
+         }
+     }
+--- a/usr/lib/tachyon/service/watchdog.uc
++++ b/usr/lib/tachyon/service/watchdog.uc
+@@ -1417,6 +1417,13 @@
+     let detour_healed = heal_uncached_rulesets_detour();
+     log_message("Watchdog: DNS stalled after 3 attempts, soft-reloading proxy runtime", "warn");
+ 
++    let udp = fs.readfile("/proc/net/udp") || "";
++    let core_dns_listening = match(udp, /(^|\n)[ \t]*[0-9]+[ \t]+2A00007F:0035[ \t]/) != null;
++    if (!core_dns_listening) {
++        log_message("Watchdog: DNS stalled and sing-box is not listening on port 53; restoring failsafe DNS in dnsmasq", "warn");
++        common.command_status_from_args([ "ucode", "-L", LIB_DIR, LIB_DIR + "/dns/apply.uc", "failsafe-restore" ]);
++    }
++
+     let incident = {
+         type: "dns",
+         description: detour_healed ? "Зависание DNS из-за блокировки прямой загрузки списков правил" : sprintf("DNS resolution stalled on %s (port 53)", active_engine),
+--- a/usr/lib/tachyon/service/lifecycle.uc
++++ b/usr/lib/tachyon/service/lifecycle.uc
+@@ -959,7 +959,7 @@
+     // Make sure the sing-box service is not left running: two engines must not
+     // fight over nftables and policy routing.
+     if (fs.stat("/etc/init.d/tachyon-core") != null)
+-        command_status_from_args([ "/etc/init.d/tachyon-core", "stop" ]);
++        command_success_from_args([ "/etc/init.d/tachyon-core", "stop" ]);
+ 
+     let engine_runtime = require("service.engine_runtime");
+ 
+@@ -1258,9 +1258,9 @@
+     // takes over the dataplane. The zapret handler service must go first: its
+     // processes hold the engine's nfqueue sockets.
+     if (fs.stat("/etc/init.d/tachyon-steer-zapret") != null)
+-        command_status_from_args([ "/etc/init.d/tachyon-steer-zapret", "stop" ]);
++        command_success_from_args([ "/etc/init.d/tachyon-steer-zapret", "stop" ]);
+     if (fs.stat("/etc/init.d/steer") != null) {
+-        command_status_from_args([ "/etc/init.d/steer", "stop" ]);
++        command_success_from_args([ "/etc/init.d/steer", "stop" ]);
+     }
+ 
+     // Stop the steer DNS upstream (smartdns). Must happen after steer dnsd is
+@@ -1319,10 +1319,8 @@
+     let core_proc = require("core.process");
+     let core_init = core_proc.core_contract().init_script;
+     if (fs.stat(core_init) != null) {
+-        let sing_box_status = command_status_from_args([ core_init, "stop" ]);
++        command_success_from_args([ core_init, "stop" ]);
+         core_proc.kill_core_daemons();
+-        if (!active_engine_is_steer() && sing_box_status != 0)
+-            status = sing_box_status;
+     }
+ 
+     module_success(STATE_UC, [ "cleanup-provenance" ]);
