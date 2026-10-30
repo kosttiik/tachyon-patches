@@ -1,24 +1,29 @@
-# Compatibility inventory
+# Compatibility and verification inventory
 
-Status: investigation in progress. A checkbox below is not a claim of compatibility.
+Scope: current NanoPi R6S configuration on official Tachyon/LuCI 1.5.21 with the ordered local patch series. Tachyon 1.5.21 generates runtime routes and nftables; generated firewall state is not copied during migration.
 
-| Area | Issue | Initial finding | Status |
+| Area | Patch/state | Verification | Limit |
 |---|---|---|---|
-| Small valid SRS | local | 1.5.21 rejects files under 100 bytes before SRS validation | Patch applied on a disposable copy; syntax and format-validation behavior still require 1.5.21 integration testing |
-| KeepAlive delay | #252 | 1.5.21 generator lacks unified_delay | Generator patch prepared; isolated extended/upstream fixtures and core check pass; old LuCI control patch prepared with syntax check; browser and integration tests pending |
-| Subscription headers | #253 | Automatic User-Agent exists in 1.5.21; test HWID and device fields independently | Audit pending |
-| Invalid subscription node | #253 | Quarantine and logging need comparison | Audit pending |
-| Core status | #254 | Dashboard and diagnostics used legacy service name and engine ID | Patches prepared; isolated old-library engine status reports the active variant; UI test pending |
-| Priority recovery | #261 | 1.5.21 probes level members sequentially | Patch prepared; selection fixtures pass with isolated 1.5.21 libraries; recovery-cycle and live tests pending |
-| UPnP bypass | #259 | 1.5.21 watchdog has no UPnP lease sync | Backport required |
-| Subscription source migration | #250 | Live configuration uses modular sections absent from old connections module | Migration required |
-| P2P direct and relay | #256 | The new DNAT bypass includes nft sets, rule ordering and watchdog updates | Backport and real client validation required |
-| Saved selector mode | #264 | Auto-balancer selection changed with the newer object model | Audit old selector and migrated state |
-| Same-name groups | #267 | New modular balancer migration has different ownership rules | Audit reverse migration and group isolation |
-| zapret real-IP resolver | #227 | 1.5.21 resolves zapret/zapret2 through bootstrap DNS | Upstream resolver change backported; isolated main/routed-DNS fixtures pass; live DNS remains untested |
-| FakeIP/DNS | #265 | Requires compare of cache, DNS rule order and nft localv6 | IPv6 nft exclusion patch prepared; DNS rule-order and live tests pending |
-| VLESS Encryption padding | extended #167 | Separate core project; issue previously open | Do not claim fixed |
+| Small valid SRS | 0001 | Small valid CIDR/SRS fixtures pass; malformed content rejected | Additional third-party formats need their own fixture |
+| Small startup lists | 0011 | Router-side fixture passes | Other target package paths need validation |
+| KeepAlive delay | 0004–0005 | Generator fixture and installed core config check pass | Old GUI and warm/cold latency measurements should be repeated per target |
+| Subscription headers | Migration helper | Legacy UA/HWID fields retained by conversion fixture | One refresh with the target provider is still required |
+| Invalid subscription node | 0009 | Ucode positive and fail-closed fixtures pass | Current cache had no matching invalid node |
+| Core/engine status | 0006, 0008 | Ucode fixtures pass for available variants | Check the target's init service, symlink, and installed engine |
+| Priority selection | 0002 | Selection fixture passes | Full live outage/recovery cycle not claimed |
+| Priority timeout debounce | 0014; equivalent behavior already existed on current router | Router-side fixture passes; current router source semantics compared | Controlled live failure-injection not performed |
+| UPnP/DNAT synchronization | 0010 | Add/delete mapping synchronized between fw4 and Tachyon sets on router; fixture passes | Public inbound reachability and actual P2P session unverified |
+| Daily list schedule | 0012 | Router crontab set for 05:00 MSK; GUI showed 05:00/1d; unchanged list update retained observed core PID | Reboot persistence and a changed-list reload were not tested in this handoff |
+| zapret DNS resolver | 0007 | Isolated main/routed-DNS fixtures pass | Client path on another router is target-specific |
+| IPv6 FakeIP nft exclusion | 0003 | Patch compiled and source case reviewed | Other IPv6 route policies need target checks |
+| Later routed DNS/FakeIP query order | Not included | Identified as follow-up in `upstream-review.md` | Needs old-schema generation fixtures before a patch |
+| Migration from modular objects | Helper | Unit fixtures and generated legacy-core checks pass; ambiguous graphs refused | Private conversion is target-specific; not a general importer |
+| VLESS Encryption padding | Separate sing-box-extended issue | No Tachyon fix claimed | Preserve security; isolate incompatible leaf only when safe |
 
-The current configuration has section, condition, outbound_source, balancer and outbound_group objects. Do not install 1.5.21 over it without a verified reverse migration and full rollback.
+The official 1.5.21 source-file hashes in `official-files.sha256` were matched to the tag. The package checksum is not a signature and does not authenticate the publisher. On the current router, package identity and target file hashes were checked before application. A different router must repeat architecture, package, path, dependency, space, and rollback checks.
 
-Official 1.5.21 APK checksums match the release checksum file. Three patch target files extracted from the official APK match the 1.5.21 tag. The package is unsigned, so the checksum does not authenticate its publisher.
+## Evidence classes
+
+- **Fixture-only:** ordered overlay applies to clean official 1.5.21 sources; all included Ucode files compile on the router; Node syntax and Python migration fixtures pass; router-side fixtures for list, DNAT, status, VLESS isolation, KeepAlive generation, Priority, and subnet/SRS behavior pass.
+- **Observed on current router:** official 1.5.21 package baseline, existing backport file state, 05:00 daily list schedule, list update without core PID change, and UPnP mapping add/delete synchronization.
+- **Not established:** reboot persistence, public inbound reachability, actual P2P session routing, broad client/game coverage, complete Priority outage/recovery, or target behavior on any other router/provider.

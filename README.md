@@ -1,22 +1,37 @@
 # Tachyon 1.5.21 backports
 
-Work in progress. This repository targets the official Tachyon 1.5.21 release, commit `3b820f0db80abf5214dbfd5246d4a2106955052f`. It does not contain router configuration, credentials, or package binaries.
+This repository targets the official Tachyon and LuCI 1.5.21 source at commit `3b820f0db80abf5214dbfd5246d4a2106955052f`. It contains source patches and test fixtures only; it contains no router configuration, credentials, package binaries, subscription URLs, or FakeIP database.
 
-Do not apply these patches to a router until the complete migration and rollback have been tested. The patches are tracked independently of the official packages; there is no automatic build or release.
+## Applying the series
 
-`patches/0001-small-srs.patch` removes the arbitrary 100-byte minimum in the two preset SRS paths. Existing SRS validation remains in place.
+The patches form one ordered series. Each patch is based on the cumulative result of the earlier patches; do not apply a later patch directly to pristine 1.5.21 or cherry-pick a patch out of order. `tools/prepare-overlay.sh` verifies the official-file hashes, applies every `patches/*.patch` in lexical order to a private temporary copy, and produces an overlay containing only the listed target files. Build from a clean extraction of the official 1.5.21 packages. Patch 0013 was removed at the user's request and must not be restored. Patch 0014 follows 0012 and builds on the earlier Priority changes.
 
-## Patch status
+```sh
+tools/prepare-overlay.sh /path/to/clean-1.5.21-extraction /path/to/new-overlay.tar.gz
+```
 
-- `0001-small-srs.patch`: isolated patch and syntax checks pass; integration remains untested.
-- `0002-priority-recovery.patch`: isolated priority selection fixtures pass against 1.5.21 libraries; a complete recovery cycle remains untested.
-- `0003-ipv6-fakeip.patch`: syntax and subnet-overlap checks pass; live IPv6 remains untested.
-- `0004-keepalive-core.patch`: generator fixtures pass for extended and upstream cores; generated extended configuration passes the installed core checker.
-- `0005-keepalive-ui.patch`: legacy settings module syntax passes; browser behavior remains untested.
-- `0006-managed-core-status.patch`: syntax passes; this changes one dashboard status path only and is accompanied by diagnostic patch 0008; browser coverage is pending.
+The extraction root must contain the exact paths in `official-files.sha256`. Do not reuse a generated overlay as the official source root. Review the target device's package revision, architecture, Ucode version, core variant, UI paths, and free space before applying. Back up every target file and configuration first, then validate Ucode and JavaScript and run the included fixtures. An upstream package update can overwrite these file-level patches.
 
-A reverse migration from the current 1.7.0 object model, UPnP/P2P support, subscription failure isolation, and several diagnostics are still missing. This repository is not an installer and does not authorize a downgrade yet. See `docs/compatibility.md`.
+## Patch series
 
-- `0007-zapret-dns-resolver.patch`: backports #227 resolver selection; isolated fixtures pass with 1.5.21 libraries. Live DNS behavior remains untested.
+| Patch | Change | Evidence/limit |
+|---|---|---|
+| 0001 | Accept small valid preset SRS files | Keeps SRS content validation; malformed fixtures remain rejected. |
+| 0002 | Prefer responsive, faster Priority members and avoid immediately reselecting a failed node | Selection fixture passes; long live failure/recovery cycle is not claimed. |
+| 0003 | Exclude IPv6 FakeIP space from real-destination handling | Addresses the `fc00::/18` vs `fc00::/7` overlap; verify generated nftables on each target. |
+| 0004–0005 | Generate and expose warm KeepAlive latency in the legacy settings UI | Generator fixtures pass; browser display and cold/warm measurements are target checks. |
+| 0006, 0008 | Report managed core and engine variant consistently | Ucode fixtures pass for the available variants. |
+| 0007 | Resolve zapret destinations through the intended DNS path | Isolated main/routed-DNS fixtures pass; target client DNS remains a live check. |
+| 0009 | Isolate a VLESS leaf rejected by the core only when references can safely be removed | Preserves encryption and fails closed on ambiguous dependencies. |
+| 0010 | Synchronize UPnP/DNAT mapping sets with the 1.5.21 nft contract | Router add/delete mapping synchronization was observed; public inbound/P2P reachability remains unverified. |
+| 0011 | Accept small valid startup lists | Content validation remains; fixture covers small valid and invalid inputs. |
+| 0012 | Add daily list-update time to the legacy UI and scheduler | Router is configured for 05:00 MSK; unchanged list update kept the observed core PID. |
+| 0014 | Debounce isolated Priority health-check timeouts until repeated failure | Fixture passes. Equivalent debounce behavior was already present on the router; no restart is needed for the source refactor. |
 
-- `0008-engine-status.patch`: legacy diagnostic service status; isolated 1.5.21-library read-only status test passed on the current router.
+See `docs/compatibility.md`, `docs/issue-audit.md`, `docs/upstream-review.md`, and `docs/upstream-commits.tsv` for scope, evidence, omissions, and the commit-by-commit audit through upstream tag 1.7.3.
+
+## Migration helper
+
+`tools/migrate-modular-config.py` converts a private modular UCI snapshot into the 1.5.21 section model. It refuses unsupported or ambiguous graphs rather than guessing. Keep source and output files private, review the generated sections and Conditions, and use a target-specific backup/rollback plan. Migration is separate from patch application and does not copy generated firewall state.
+
+The GitHub repository is `https://github.com/kosttiik/tachyon-patches.git`. Pin the reviewed commit in any reusable router bundle; do not rely on a moving branch name.

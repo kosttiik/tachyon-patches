@@ -1,0 +1,58 @@
+--- a/usr/lib/tachyon/tachyon_core/priority.uc
++++ b/usr/lib/tachyon/tachyon_core/priority.uc
+@@ -523,4 +523,12 @@
+     state.levelIndex = selected.levelIndex;
+     state.activeDelay = selected.delay;
+     return true;
++}
++
++function defer_active_failure(state) {
++    state.activeFailureCount = (state.activeFailureCount || 0) + 1;
++    if (state.activeFailureCount < (state.guard ? state.guard.fail_threshold : 3))
++        return true;
++    state.activeFailureCount = 0;
++    return false;
+ }
+@@ -530,6 +538,7 @@
+         active: "",
+         levelIndex: -1,
+         activeDelay: 0,
++        activeFailureCount: 0,
+         guard: reachability_guard.create({
+             fail_threshold: 3,
+             recover_threshold: 8,
+@@ -559,12 +568,18 @@
+         let active = clash_probe(state.active, group);
+         if (active.alive) {
+             state.activeDelay = active.delay;
++            state.activeFailureCount = 0;
+             if (state.levelIndex == 0 && state.guard)
+                 reachability_guard.observe(state.guard, { direct_domestic: true, direct_foreign: true, tunnel_foreign: true, now: now });
+         }
+         else {
+             if (state.guard)
+                 reachability_guard.observe(state.guard, { direct_domestic: true, direct_foreign: false, tunnel_foreign: false, now: now });
++            // Ignore isolated health-check timeouts.
++            if (defer_active_failure(state)) {
++                state.nextActiveCheck = now + duration_to_seconds(group.active_check_interval, 5);
++                return;
++            }
+             let selected = choose_from_level_range(
+                 group,
+                 state.levelIndex,
+@@ -704,7 +719,14 @@
+     select_fixture(ARGV[1], ARGV[2], ARGV[3], ARGV[4], ARGV[5]);
+ else if (mode == "select-faster-fixture")
+     select_faster_fixture(ARGV[1], ARGV[2], ARGV[3], ARGV[4]);
++else if (mode == "active-failure-fixture") {
++    let state = { activeFailureCount: 0, guard: { fail_threshold: int(ARGV[1] || 3) } };
++    let waits = [];
++    for (let i = 0; i < int(ARGV[2] || 3); i++)
++        push(waits, defer_active_failure(state));
++    write_json({ waits, count: state.activeFailureCount });
++}
+ else {
+-    warn("Usage: singbox/priority.uc <start-runtime|stop-runtime|worker|select-fixture|select-faster-fixture>\n");
++    warn("Usage: singbox/priority.uc <start-runtime|stop-runtime|worker|select-fixture|select-faster-fixture|active-failure-fixture>\n");
+     exit(1);
+ }

@@ -1,37 +1,49 @@
-# Review of changes after 1.5.21
+# Upstream audit after Tachyon 1.5.21
 
-Source comparison: 1.5.21 `3b820f0d` through 1.7.0 `1ff6491b`; full history fetched and 85 commits enumerated. A commit may mix changes across concerns; use the specific hunk and its dependencies rather than cherry-picking a title wholesale. This is an initial priority assessment, not evidence that all changes have been implemented or tested.
+## Scope and method
 
-## Required for the current router and safe migration
+Compared official 1.5.21 (`3b820f0db80abf5214dbfd5246d4a2106955052f`) with upstream tag 1.7.3 (`108d6d63b4816aba947ba15c35ae9e668e01ec02`). The range contains 91 commits, including merges and release commits. Every commit is listed in `upstream-commits.tsv` with a terminal decision. Mixed commits were separated by changed path and hunk; titles alone were not treated as proof that a fix applies to the legacy schema.
 
-- `a28268a5`: #227 DNS resolver fix; patch 0007 prepared. Other server/UI changes in the same commit are not automatically needed.
-- `b2d20e9e`, `f14584ba`: #231/#238 section fail-policy behavior. Audit actual scheduler and return-to-original behavior; upstream's implementation does not establish UDP checks or reload-free transitions.
-- `68d79c4d`, `078360db`, `d58363b1`: priority fastest selection, failed-node exclusion and accelerated recovery. Patch 0002 needs full live recovery tests and a compatible old UI/state representation.
-- `490c9c1d`, `66ef145c`, `d58363b1`: DNAT/P2P and UPnP; port sets, firewall order, watchdog and retry form one feature. Validate together.
-- `f3c7fc91`, `d1370ee1`: recovery of routing after network restart and DNS fail-safe after unclean startup. Compare old code and verify on controlled reboot/network restoration before deciding exact hunks.
-- `4f3f5ce2`, `860e81c3`, `781c686f`, `13a449e0`: UDP routing, FakeIP/routed-DNS, IP-based rule interactions and DNS-section priority. Required to investigate against current architecture; use fixtures for applicable paths.
-- `d58363b1`: IPv6 FakeIP exclusion patch 0003; other unrelated UI and migration changes require separate review.
-- `4476eec5` / 1.6.1 changes: #252 KeepAlive, #253 invalid-node isolation and #254 status. KeepAlive and one status path are prepared; subscription repair/dependent outbounds and backend status remain incomplete. Locate actual functional commits rather than assuming a release label contains one atomic patch.
-- `1ff6491b`: preserve old subscription URL behavior and avoid re-creating deleted sources; examine reverse-migration relevance, do not recreate modular objects blindly.
-- `5b207132`, `c6099aba`, `0597e42f`, `237f802a`: package installation/update and apk robustness. Check existing old release code and target OpenWrt before carrying exact applicable changes.
+The intended next-router baseline remains official 1.5.21 plus this ordered local patch series. The newer 1.6+ modular UI and data model are deliberately excluded. A new source patch must be based on the already patched tree, after 0001–0012 and then 0014 where it touches Priority; never apply a raw later-upstream patch against pristine 1.5.21.
 
-## Conditional on target functionality
+## Backported in the ordered series
 
-- `39599044`: Reality ML-KEM flag and native desync version gating; preserve if imported nodes use those options.
-- `6cf6e8f9`, `7c096a87`, `cd70727f`: AWG/WARP and pool isolation; only if used on a target, with current architecture-specific tests. Lite mode remains off unless measured need.
-- `af96f24b`: TUN schema/routing and Mieru port range; apply only where used; do not turn on TUN or expose new server ports.
-- `cb41ff6e`, `af6903f5`: inbound schemas, engine switching, Reality/XHTTP; relevant only to configured inbounds or engine switches, but must not break existing configurations.
-- `11678bb7`, `6b9b747c`: fuzzer background cleanup and descriptor handling; apply if running the fuzzer on 1.5.21, with timeout regression test.
-- `247bc134`: GitHub token and password-manager behavior; evaluate exact code on the legacy UI and existing #138 protection before patching.
-- `bb45e744`, `569d545d`: update feedback, download robustness and subscription-related changes. Compare feature use and avoid copying new UI wholesale.
+- Small valid SRS/list acceptance: 0001 and 0011.
+- Priority fastest-member selection and failed-node isolation: 0002; timeout debounce: 0014.
+- IPv6 FakeIP nft exclusion: 0003.
+- Legacy KeepAlive UI/generator: 0004–0005.
+- Managed-core and engine identity/status: 0006 and 0008.
+- Zapret DNS resolver path: 0007.
+- VLESS subscription leaf isolation with fail-closed dependency checks: 0009.
+- Legacy nft-aware UPnP/DNAT synchronization: 0010.
+- Daily list-update scheduling: 0012.
 
-## Do not port for the stated goal
+Patch 0013 was explicitly removed at the user's request. It modified broad ruleset/constants/UI behavior and is not part of the series. The series has a numbering gap by design.
 
-- `1b7ebb8e`, `32348aaf`, `1143fd5b`: modular redesign / 1.7 release UI. The user explicitly wants the legacy section model and appearance. Reverse-migrate current state instead.
-- Dashboard presentation, styling, typography, color, QR/sidebar and layout changes: do not bring them into the legacy UI merely because they are newer. Review functional fixes separately from mixed presentation commits.
-- Tests, CI, dependency bumps, translations and release-only commits are not router runtime patches. Adapt useful tests to the legacy code and keep any newly added UI text understandable.
-- Changes exclusively for another project (Forkop) or another core's parser cannot be presented as Tachyon fixes.
+## Useful follow-up candidates
 
-## Remaining audit
+These are findings, not claims that a patch is already implemented:
 
-Read the full commit inventory in `docs/upstream-commits.tsv` and inspect mixed commits before assigning each final hunk. Status `review` means unassessed, not safe to omit. Confirm upstream source/package hashes and keep local backports narrowly scoped and independently reversible.
+1. **DNS recovery after an unclean start** (`d1370ee1`). Upstream restores the dnsmasq failsafe in init/lifecycle paths. This is a strong operational candidate for a narrow legacy backport. First compare 1.5.21 cleanup/restore ownership and add fixtures for normal start, unclean state, and repeated start; then validate boot recovery on a spare target. No reboot test is claimed here.
+2. **Reapply routing after WAN/network restart** (`f3c7fc91`). The hotplug/initd change may help networks that renew or restart interfaces, but it touches route and nft lifecycle. Port only the relevant old-schema hunk after testing repeated interface events, no duplicate chains, and restoration of normal traffic. Not included.
+3. **Routed DNS/FakeIP ordering** (`860e81c3`, `13a449e0`, later refinement in `781c686f`). These address source-aware routed DNS, FakeIP interception, DNS-only section order, and mixed/domain/IP ruleset distinctions. The later implementation assumes evolved condition and ruleset helpers. The current series only includes 0003's IPv6 FakeIP range fix and 0007's zapret resolver fix; it does not claim these later query-order fixes. Before adding a patch, compare generated legacy core JSON and nft state for domain-only, mixed, IP-only, DNS-only, closed GeoIP, routed DNS, and excluded-source cases.
+4. **DNAT/P2P bypass completeness** (`490c9c1d`, `66ef145c`). Patch 0010 covers legacy mapping synchronization and its add/delete fixture/live observation. That does not prove upstream's broader static-forward capture fixes or real peer traffic. Test a dynamic and static forward, direct vs proxy route, counters, replies, and deletion before claiming P2P fixed. External inbound and an actual P2P session remain unverified.
+5. **Discord UDP/desync override** (`a8095af6`). This mixes generator behavior and substantial UI changes. A narrow legacy generator patch is a candidate only if the target uses that desync path; retain the old UI and test TCP, UDP voice, and automatic preset precedence. Not included.
+6. **Community list deduplication and reload guards** (`8d743ff0`). This spans downloader locks, lifecycle, runtime reload, and major UI changes. The idempotence improvements may be useful, but require old-schema concurrent update/reload tests. Not included.
+7. **Package installation/version reliability** (`5b207132`, `42642a16`, `0597e42f`, `237f802a`). These affect local APK installation, mirror/certificate fallback, asset revision selection, and install/uninstall cleanup. Keep TLS validation intact; test each package transaction against the target OpenWrt `apk` before backporting. Not included.
+
+## Version-specific findings
+
+- **1.7.0** introduced the modular graph model and broad UI redesign. Its contained fixes must be considered individually. Priority fastest/failure handling and IPv6 FakeIP are represented by 0002/0003; the schema migrations and new UI are not.
+- **1.7.1** includes mixed runtime, download, and SIGHUP/reload changes. The broad `8d743ff0` change is not a safe wholesale backport.
+- **1.7.2** disables `.trs` for sing-box variants and repairs invalid rule-set files. The current home router runs `sing-box-extended`, uses `.srs`, and already has local SRS validation fixes; the `.trs` format switch does not apply. Core-specific repair behavior needs separate fixtures before porting.
+- **1.7.3** adds 256-way parallel latency probing, a `priority_level` to `outbound_group` migration, and non-proxy section ping behavior. The parallel probe fan-out is not assumed safe on low-memory routers; the migration conflicts with the legacy data model. The non-proxy diagnostic change may be considered separately if the legacy status path demonstrates the same defect. Follow-up commit `5b30bc0b` covers Tachyon Core 0.2.6 WARP, `.trs`/`.srs` handling, RSS display, and a URLTest race; those are conditional and do not justify importing the modular UI. Tag `1.7.3` points at `108d6d63`; the release commit is `9cab66ca`.
+
+## Not backported
+
+- Visual redesign, dashboard layout, status badges, modals, and presentation-only changes: preserve the 1.5.21 interface.
+- Modular conditions, outbound sources/groups, Priority migration, and related repair/migration logic: do not transplant into the legacy schema; use the explicit one-way private migration helper only where its constraints are satisfied.
+- Features not configured on the target (TUN, Mieru, AWG/WARP, Telegram recovery, Tailscale, new inbound types): leave conditional; do not enable or expose new listeners automatically.
+- Tests/CI/build-only commits: reuse the test idea only where it covers a backported behavior; no runtime change.
+
+No source-level or live evidence is claimed for the follow-up candidates above. See `docs/compatibility.md` for what was tested in fixtures and on the current router.
