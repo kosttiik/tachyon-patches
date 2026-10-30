@@ -1,0 +1,50 @@
+--- a/usr/lib/tachyon/nft/apply.uc
++++ b/usr/lib/tachyon/nft/apply.uc
+@@ -3429,6 +3429,18 @@
+ // how it reached a user's router as an unexplained empty set. Per-section sets
+ // are used when they exist, the shared sets otherwise, exactly like
+ // nft_add_community_subnet_file_for_section() does further down.
++function community_subnet_file_usable(path) {
++    let data = fs.readfile(path);
++    if (data == null)
++        return false;
++    for (let line in split(as_string(data), /\r?\n/)) {
++        line = trim(line);
++        if (line != "" && substr(line, 0, 1) != "#" && nft_ip_or_cidr(line))
++            return true;
++    }
++    return false;
++}
++
+ function nft_load_community_subnets(section, table, common_set, common6_set, ip_port_set, ip_port6_set) {
+     if (!bool_option(section, "community_subnets", true))
+         return true;
+@@ -3453,7 +3465,7 @@
+ 
+         let loaded = false;
+         for (let path in candidates) {
+-            if (helpers.file_is_usable(path, 50)) {
++            if (community_subnet_file_usable(path)) {
+                 nft_add_community_subnet_file_to_family_sets(
+                     path, table, v4_set, v6_set, service, "5000", ports_v4, ports_v6, udp_ports_v4, udp_ports_v6);
+                 loaded = true;
+@@ -4034,6 +4046,8 @@
+     exit(nft_disable_router_output_intercept(ARGV[1]) ? 0 : 1);
+ else if (mode == "nft-sync-router-output-intercept")
+     exit(nft_sync_router_output_intercept(ARGV[1], ARGV[2], ARGV[3]) ? 0 : 1);
++else if (mode == "community-subnet-file-usable")
++    exit(community_subnet_file_usable(ARGV[1]) ? 0 : 1);
+ else if (mode == "dnat-coalesce-fixture")
+     print(sprintf("%J\n", coalesce_dnat_entries(common_read_json_file(ARGV[1]) || [])));
+ else if (mode == "nft-sync-dnat-sets")
+--- a/usr/lib/tachyon/service/lifecycle.uc
++++ b/usr/lib/tachyon/service/lifecycle.uc
+@@ -908,7 +908,7 @@
+                 let args = [ "curl", "-fsSL", "--connect-timeout", "3", "-m", "5", candidate, "-o", dl_tmp ];
+                 if (command_success_from_args(args) && runtime_rulesets_mod.is_usable_srs_file(dl_tmp)) {
+                     let st = fs.stat(dl_tmp);
+-                    if (st && st.size >= 100) {
++                    if (st && st.size > runtime_rulesets_mod.EMPTY_SRS_SIZE) {
+                         command_success_from_args([ "mv", "-f", dl_tmp, tmp_path ]);
+                         runtime_rulesets_mod.remember_srs_file_verified(tmp_path);
+                         command_success_from_args([ "mkdir", "-p", etc_dir ]);
