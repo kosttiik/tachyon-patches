@@ -1,0 +1,19 @@
+--- a/usr/lib/tachyon/tachyon_core/generator.uc
++++ b/usr/lib/tachyon/tachyon_core/generator.uc
+@@ -1096,6 +1096,16 @@
+         },
+         __dns_hosts_predefined: dns_hosts_predefined
+     };
++
++    let variant_file = getenv("SB_VARIANT_STATE_FILE") || "/etc/tachyon/tachyon-core-variant";
++    let variant = trim(as_string(fs.readfile(variant_file) || ""));
++    if (variant == "" && getenv("SB_VARIANT_STATE_FILE") == null)
++        variant = trim(as_string(fs.readfile("/etc/tachyon/sing-box-variant") || ""));
++    let profile = core_profile.profile(as_string(sb_version_val), variant);
++    let unified_delay = bool_option(settings, "unified_delay", false) ||
++        lc(option(settings, "latency_test_mode", "standard")) == "keepalive";
++    if (unified_delay && (profile == "extended" || profile == "extended-compressed"))
++        base_cfg.experimental.unified_delay = { enabled: true };
+ 
+     if (is_sb_1_14_plus)
+         base_cfg.http_clients = [{ tag: "ruleset-http" }];
