@@ -1,0 +1,11 @@
+--- a/usr/lib/tachyon/service/ui.uc
++++ b/usr/lib/tachyon/service/ui.uc
+@@ -847,7 +847,7 @@
+ }
+ 
+ function sing_box_enabled() {
+-    return file_executable("/etc/rc.d/S99sing-box");
++    return file_executable("/etc/rc.d/S99tachyon");
+ }
+ 
+ function sing_box_running() {
