@@ -1,0 +1,15 @@
+# Local router state and credentials
+private/
+backups/
+*.key
+*.pem
+*.p12
+*.db
+*.db-*
+*.log
+.env
+.env.*
+*secret*
+*subscription*
+node_modules/
+.DS_Store
