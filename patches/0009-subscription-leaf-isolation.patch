@@ -1,0 +1,140 @@
+--- a/usr/lib/tachyon/tachyon_core/runtime.uc
++++ b/usr/lib/tachyon/tachyon_core/runtime.uc
+@@ -1531,6 +1531,8 @@
+ }
+ 
+ function config_item_tag(config, list_name, index) {
++    if (list_name == "outbound")
++        list_name = "outbounds";
+     let list = type(config) == "object" ? config[list_name] : null;
+     if (type(list) != "array")
+         return null;
+@@ -1547,7 +1549,7 @@
+     reason = as_string(reason || "");
+     let tag = null;
+ 
+-    let m = match(reason, /(outbounds|endpoints|inbounds)\[(\d+)\]/);
++    let m = match(reason, /(outbounds|outbound|endpoints|inbounds)\[(\d+)\]/);
+     if (m)
+         tag = config_item_tag(common.read_json_file(config_path), m[1], m[2]);
+ 
+@@ -1570,6 +1572,92 @@
+ 
+     let name = section_from_tag(tag);
+     return section_exists(name) ? name : "";
++}
++
++function json_contains_string(value, target) {
++    if (type(value) == "string")
++        return value == target;
++    if (type(value) == "array") {
++        for (let item in value)
++            if (json_contains_string(item, target))
++                return true;
++    }
++    else if (type(value) == "object") {
++        for (let key, item in value)
++            if (json_contains_string(item, target))
++                return true;
++    }
++    return false;
++}
++
++function remove_incompatible_vless_leaf(config_path, reason) {
++    reason = as_string(reason || "");
++    if (!match(reason, /parse encryption/))
++        return false;
++    let m = match(reason, /outbound\[([0-9]+)\]/);
++    if (!m)
++        return false;
++
++    let cfg = common.read_json_file(config_path);
++    let index = int(m[1]);
++    if (type(cfg) != "object" || type(cfg.outbounds) != "array" ||
++        index < 0 || index >= length(cfg.outbounds))
++        return false;
++
++    let bad = cfg.outbounds[index];
++    let tag = type(bad) == "object" ? as_string(bad.tag || "") : "";
++    if (type(bad) != "object" || as_string(bad.type || "") != "vless" ||
++        tag == "" || as_string(bad.encryption || "") == "" ||
++        as_string(bad.encryption) == "none")
++        return false;
++
++    let remaining = [];
++    for (let i = 0; i < length(cfg.outbounds); i++) {
++        if (i == index)
++            continue;
++        let outbound = cfg.outbounds[i];
++        if (type(outbound) == "object") {
++            if (as_string(outbound.detour || "") == tag)
++                return false;
++            if (type(outbound.outbounds) == "array") {
++                let members = [];
++                let references_bad = false;
++                for (let member in outbound.outbounds) {
++                    if (as_string(member) == tag)
++                        references_bad = true;
++                    else
++                        push(members, member);
++                }
++                if (references_bad) {
++                    let type_name = as_string(outbound.type || "");
++                    if ((type_name != "selector" && type_name != "urltest") || length(members) == 0)
++                        return false;
++                    outbound.outbounds = members;
++                    if (as_string(outbound.default || "") == tag) {
++                        if (type_name == "selector")
++                            outbound.default = members[0];
++                        else
++                            delete outbound.default;
++                    }
++                }
++            }
++            if (as_string(outbound.default || "") == tag || json_contains_string(outbound, tag))
++                return false;
++        }
++        push(remaining, outbound);
++    }
++
++    let remainder = {};
++    for (let key, value in cfg)
++        if (key != "outbounds")
++            remainder[key] = value;
++    if (json_contains_string(remainder, tag))
++        return false;
++
++    cfg.outbounds = remaining;
++    log_message("sing-box rejected VLESS encryption; excluding only outbound '" + tag +
++        "' and removing its selector/urltest references. The encryption value is preserved in the subscription cache", "warn");
++    return write_file(config_path, sprintf("%J", cfg)) != null;
+ }
+ 
+ // Runs sing-box check and applies the known graceful-degradation repairs
+@@ -1586,6 +1674,7 @@
+         // from all inbounds and retry. Loops to handle multiple unknown fields
+         // across retries (e.g. prefer_ip then tolerate_time_skewness).
+         let cert_pin_m = match(check_result.reason, /certificate_sha256/) != null;
++        let encryption_m = match(check_result.reason, /parse encryption/) != null;
+         let user_field_m = match(check_result.reason, /inbounds\[\d+\]\.users\[\d+\]\.(\w+): json: unknown field/);
+         let field_m = match(check_result.reason, /inbounds\[\d+\]\.(\w+): json: unknown field/);
+         let stripped = false;
+@@ -1611,6 +1700,9 @@
+                 stripped = true;
+             }
+         }
++        else if (encryption_m) {
++            stripped = remove_incompatible_vless_leaf(temp_config, check_result.reason);
++        }
+         else if (user_field_m) {
+             let unknown_field = user_field_m[1];
+             log_message("Installed sing-box does not support inbound user field '" + unknown_field + "'; retrying without it", "warn");
+@@ -1951,6 +2043,8 @@
+ else if (mode == "outbound-repair-fixture") {
+     printf("%s\n", repair_outbound_field(ARGV[1] || "", ARGV[2] || "") ? "repaired" : "not-repaired");
+ }
++else if (mode == "incompatible-vless-fixture")
++    printf("%s\n", remove_incompatible_vless_leaf(ARGV[1] || "", ARGV[2] || "") ? "removed" : "retained");
+ else if (mode == "patch-dns-config")
+     patch_dns_config(ARGV[1] || "");
+ else if (mode == "restore-dns-config")
