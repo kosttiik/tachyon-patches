@@ -12,6 +12,9 @@ Status: investigation in progress. A checkbox below is not a claim of compatibil
 | Priority recovery | #261 | 1.5.21 probes level members sequentially | Patch prepared; selection fixtures pass with isolated 1.5.21 libraries; recovery-cycle and live tests pending |
 | UPnP bypass | #259 | 1.5.21 watchdog has no UPnP lease sync | Backport required |
 | Subscription source migration | #250 | Live configuration uses modular sections absent from old connections module | Migration required |
+| P2P direct and relay | #256 | The new DNAT bypass includes nft sets, rule ordering and watchdog updates | Backport and real client validation required |
+| Saved selector mode | #264 | Auto-balancer selection changed with the newer object model | Audit old selector and migrated state |
+| Same-name groups | #267 | New modular balancer migration has different ownership rules | Audit reverse migration and group isolation |
 | FakeIP/DNS | #265 | Requires compare of cache, DNS rule order and nft localv6 | IPv6 nft exclusion patch prepared; DNS rule-order and live tests pending |
 | VLESS Encryption padding | extended #167 | Separate core project; issue previously open | Do not claim fixed |
 
