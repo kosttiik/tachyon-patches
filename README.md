@@ -16,3 +16,5 @@ Do not apply these patches to a router until the complete migration and rollback
 - `0006-managed-core-status.patch`: syntax passes; this changes one dashboard status path only and does not complete issue #254.
 
 A reverse migration from the current 1.7.0 object model, UPnP/P2P support, subscription failure isolation, and several diagnostics are still missing. This repository is not an installer and does not authorize a downgrade yet. See `docs/compatibility.md`.
+
+- `0007-zapret-dns-resolver.patch`: backports #227 resolver selection; isolated fixtures pass with 1.5.21 libraries. Live DNS behavior remains untested.

@@ -15,6 +15,7 @@ Status: investigation in progress. A checkbox below is not a claim of compatibil
 | P2P direct and relay | #256 | The new DNAT bypass includes nft sets, rule ordering and watchdog updates | Backport and real client validation required |
 | Saved selector mode | #264 | Auto-balancer selection changed with the newer object model | Audit old selector and migrated state |
 | Same-name groups | #267 | New modular balancer migration has different ownership rules | Audit reverse migration and group isolation |
+| zapret real-IP resolver | #227 | 1.5.21 resolves zapret/zapret2 through bootstrap DNS | Upstream resolver change backported; isolated main/routed-DNS fixtures pass; live DNS remains untested |
 | FakeIP/DNS | #265 | Requires compare of cache, DNS rule order and nft localv6 | IPv6 nft exclusion patch prepared; DNS rule-order and live tests pending |
 | VLESS Encryption padding | extended #167 | Separate core project; issue previously open | Do not claim fixed |
 
