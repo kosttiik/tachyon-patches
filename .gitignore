@@ -10,6 +10,7 @@ backups/
 .env
 .env.*
 *secret*
-*subscription*
+/subscription-data/
+*.uci
 node_modules/
 .DS_Store

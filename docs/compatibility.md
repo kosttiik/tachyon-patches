@@ -5,7 +5,7 @@ Status: investigation in progress. A checkbox below is not a claim of compatibil
 | Area | Issue | Initial finding | Status |
 |---|---|---|---|
 | Small valid SRS | local | 1.5.21 rejects files under 100 bytes before SRS validation | Patch applied on a disposable copy; syntax and format-validation behavior still require 1.5.21 integration testing |
-| KeepAlive delay | #252 | 1.5.21 generator lacks unified_delay | Generator patch prepared; isolated extended/upstream fixtures and core check pass; old LuCI controls and integration remain pending |
+| KeepAlive delay | #252 | 1.5.21 generator lacks unified_delay | Generator patch prepared; isolated extended/upstream fixtures and core check pass; old LuCI control patch prepared with syntax check; browser and integration tests pending |
 | Subscription headers | #253 | Automatic User-Agent exists in 1.5.21; test HWID and device fields independently | Audit pending |
 | Invalid subscription node | #253 | Quarantine and logging need comparison | Audit pending |
 | Core status | #254 | Engine and variant detection need comparison | Audit pending |
