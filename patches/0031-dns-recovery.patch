@@ -1,0 +1,89 @@
+diff --git a/usr/lib/tachyon/dns/apply.uc b/usr/lib/tachyon/dns/apply.uc
+index e04dee4..f32acb4 100644
+--- a/usr/lib/tachyon/dns/apply.uc
++++ b/usr/lib/tachyon/dns/apply.uc
+@@ -426,10 +426,16 @@ function dnsmasq_configure(force) {
+ 
+     if (as_string(force) != "force") {
+         let sb_pid = sing_box_running_pid();
++        for (let attempt = 0; sb_pid == "" && attempt < 5; attempt++) {
++            common.command_status_from_args([ "sleep", "1" ]);
++            sb_pid = sing_box_running_pid();
++        }
+         if (sb_pid == "") {
+             log("sing-box is not running; dnsmasq will forward to system DNS until sing-box starts", "warn");
+             return true;
+         }
++        for (let attempt = 0; !sing_box_dns_listening() && attempt < 5; attempt++)
++            common.command_status_from_args([ "sleep", "1" ]);
+         if (!sing_box_dns_listening()) {
+             log("sing-box DNS inbound (127.0.0.42:53) is not listening yet; dnsmasq will forward to system DNS", "warn");
+             return true;
+diff --git a/usr/lib/tachyon/service/watchdog.uc b/usr/lib/tachyon/service/watchdog.uc
+index 8fad14b..bbf2b42 100644
+--- a/usr/lib/tachyon/service/watchdog.uc
++++ b/usr/lib/tachyon/service/watchdog.uc
+@@ -1209,8 +1209,9 @@ function safe_proxy_restart(reason, force_level) {
+                 "/etc/init.d/steer start >/dev/null 2>&1; rm -f " + lock_path);
+         } else {
+             let init_script = core_init_script();
++            let dns_apply_cmd = "ucode -L " + shell_quote(LIB_DIR) + " " + shell_quote(LIB_DIR + "/dns/apply.uc") + " configure";
+             bg_system(init_script + " stop >/dev/null 2>&1; " +
+-                init_script + " start >/dev/null 2>&1; rm -f " + lock_path);
++                init_script + " start >/dev/null 2>&1; " + dns_apply_cmd + " >/dev/null 2>&1; rm -f " + lock_path);
+         }
+     } else {
+         log_message("Escalating to full Tachyon restart (" + reason + "): the lighter restart did not restore service", "warn");
+@@ -1772,43 +1773,19 @@ function heal_dns_continuous(ev) {
+     if (active_engine == "steer" || active_engine == "steer-extended")
+         return heal_dns_continuous_steer();
+ 
+-    // This repair only ever sets noresolv to the one value it wants, so on the
+-    // second and later failures it rewrote a setting that already held that
+-    // value — and reloaded dnsmasq anyway, which drops its cache and re-reads
+-    // every config file for nothing. DNS failing three times running is exactly
+-    // when it is likely to fail a fourth, so the useless reload arrived
+-    // precisely when the resolver could least afford it.
+-    //
+-    // Reading first makes agreement a no-op and leaves divergence repaired.
+-    let current = trim(as_string(uci_core.get("dhcp.@dnsmasq[0].noresolv") || ""));
+-    if (current == "1") {
+-        // The counter still resets: the fact was handled, by establishing that
+-        // dnsmasq already holds the configuration this healer wants. The DNS
+-        // failure therefore has another cause, and re-running this repair on
+-        // every tick would keep finding the same thing.
++    let dns_cmd = [ "ucode", "-L", LIB_DIR, LIB_DIR + "/dns/apply.uc" ];
++    let dns_complete = command_status_from_args([ ...dns_cmd, "default-config-complete" ]) == 0;
++    if (dns_complete) {
+         controller.reset_dns_consecutive();
+-        ai_heal_report(
+-            "dns_continuous",
+-            "DNS resolution failed 3 times consecutively",
+-            "dnsmasq уже настроен (noresolv=1), перезагрузка не требуется",
+-            "skipped"
+-        );
++        ai_heal_report("dns_continuous", "DNS resolution failed 3 times consecutively",
++            "dnsmasq configuration is complete; no reload required", "skipped");
+         return;
+     }
+-
+-    // Synchronous repair: uci and the dnsmasq reload both return before this
+-    // function does, so the outcome is known here and needs no recovery watch.
+-    system("/sbin/uci set dhcp.@dnsmasq[0].noresolv='1' >/dev/null 2>&1");
+-    system("/sbin/uci commit dhcp >/dev/null 2>&1");
+-    let rc = system("/etc/init.d/dnsmasq reload >/dev/null 2>&1");
++    let rc = command_status_from_args([ ...dns_cmd, "configure" ]);
++    let restored = rc == 0 && command_status_from_args([ ...dns_cmd, "default-config-complete" ]) == 0;
+     controller.reset_dns_consecutive();
+-
+-    ai_heal_report(
+-        "dns_continuous",
+-        "DNS resolution failed 3 times consecutively",
+-        "Restoring dnsmasq config and reloading",
+-        rc == 0 ? "fixed" : "failed"
+-    );
++    ai_heal_report("dns_continuous", "DNS resolution failed 3 times consecutively",
++        "Restore dnsmasq forward and settings", restored ? "fixed" : "failed");
+ }
+ 
+ // ─── AI nfqueue/zapret Runtime Recovery ──────────────────────────────────────

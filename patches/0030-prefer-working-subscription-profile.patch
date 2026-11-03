@@ -1,0 +1,22 @@
+diff --git a/usr/lib/tachyon/subscription/cache.uc b/usr/lib/tachyon/subscription/cache.uc
+index fc4c256..5a7e6a3 100644
+--- a/usr/lib/tachyon/subscription/cache.uc
++++ b/usr/lib/tachyon/subscription/cache.uc
+@@ -1116,7 +1116,7 @@ function write_user_agent_candidates(path, configured_user_agent, preferred_user
+ 
+     let result = [];
+     let seen = {};
+-    let candidates = [ default_user_agent, preferred_user_agent ];
++    let candidates = [ preferred_user_agent, default_user_agent ];
+     for (let profile in auto_user_agent_profiles)
+         push(candidates, profile);
+ 
+@@ -1589,7 +1589,7 @@ function user_agent_candidates(configured_user_agent, preferred_user_agent, defa
+ 
+     let result = [];
+     let seen = {};
+-    let candidates = [ default_user_agent, preferred_user_agent ];
++    let candidates = [ preferred_user_agent, default_user_agent ];
+     for (let profile in auto_user_agent_profiles)
+         push(candidates, profile);
+ 

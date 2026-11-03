@@ -1,0 +1,50 @@
+diff --git a/usr/lib/tachyon/tachyon_core/generator_routes.uc b/usr/lib/tachyon/tachyon_core/generator_routes.uc
+index 69ea403..88249bc 100644
+--- a/usr/lib/tachyon/tachyon_core/generator_routes.uc
++++ b/usr/lib/tachyon/tachyon_core/generator_routes.uc
+@@ -2225,7 +2225,9 @@ const ACTION_KEYS = {
+     timeout: true,
+     method: true,
+     no_drop: true,
+-    strategy: true
++    strategy: true,
++    rcode: true,
++    answer: true
+ };
+ 
+ // The two "everything except the selected countries" modes match the inverted
+@@ -2538,6 +2540,34 @@ function load_community_subnet_cidrs(community, filter_mode) {
+ }
+ 
+ function push_section_dns_matcher_rule(config, section, rule, excluded_cidrs, domain_rule_set_tags) {
++    let block_domains = option(section, "action", "") == "block" &&
++        ctx.is_sb_1_14_plus && ctx.is_sb_1_14_plus() && !rule.match_response &&
++        length(list_option(section, "ports")) == 0 && trim(option(section, "ports_text", "")) == "" &&
++        length(list_option(section, "protocol")) == 0 && length(list_option(section, "excluded_protocol")) == 0 &&
++        length(connections.dscp_list(section)) == 0 && length(connections.geoip_country_list(section)) == 0 &&
++        !(type(section.__inverted_conditions) == "array" && length(section.__inverted_conditions) > 0);
++    if (block_domains && rule.rule_set != null) {
++        let tags = type(rule.rule_set) == "array" ? rule.rule_set : [ rule.rule_set ];
++        for (let tag in tags)
++            if (index(domain_rule_set_tags, tag) < 0)
++                block_domains = false;
++    }
++    if (block_domains && (rule.domain != null || rule.domain_suffix != null || rule.domain_keyword != null || rule.domain_regex != null || rule.rule_set != null)) {
++        let ttl = int(rule.rewrite_ttl != null ? rule.rewrite_ttl : 60);
++        if (ttl == null || ttl < 0) ttl = 60;
++        for (let query_type in [ "A", "AAAA" ]) {
++            let block_rule = {};
++            for (let key, value in rule)
++                if (key != "action" && key != "server" && key != "rewrite_ttl" && key != "query_type")
++                    block_rule[key] = value;
++            block_rule.action = "predefined";
++            block_rule.rcode = "NOERROR";
++            block_rule.query_type = [ query_type ];
++            block_rule.answer = [ "*. " + as_string(ttl) + " IN " + query_type + (query_type == "A" ? " 0.0.0.0" : " ::") ];
++            push_dns_matcher_rule(config, apply_excluded_source_ips(block_rule, excluded_cidrs));
++        }
++        return;
++    }
+     let action = option(section, "action", "");
+     let routed_tag = routed_dns_server_tag(section[".name"]);
+     if ((action == "zapret" || action == "zapret2" || action == "byedpi") &&
