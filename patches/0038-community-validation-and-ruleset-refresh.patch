@@ -1,0 +1,54 @@
+diff --git a/usr/lib/tachyon/config/validator.uc b/usr/lib/tachyon/config/validator.uc
+--- a/usr/lib/tachyon/config/validator.uc
++++ b/usr/lib/tachyon/config/validator.uc
+@@ -347,7 +347,8 @@
+ }
+ 
+ function community_service_valid(value, services) {
+-    return list_has_value(services, value);
++    return list_has_value(services, value) ||
++        require("tachyon_core.rulesets").is_community(value);
+ }
+ 
+ function remote_reference(value) {
+diff --git a/usr/lib/tachyon/components/updates.uc b/usr/lib/tachyon/components/updates.uc
+--- a/usr/lib/tachyon/components/updates.uc
++++ b/usr/lib/tachyon/components/updates.uc
+@@ -3480,15 +3480,28 @@
+     try {
+         if (fs.writefile(request_config, content) == null)
+             ok = false;
+-        else for (let tag in tags) {
+-            let url = "http://" + address + "/providers/rules/" + ruleset_api_tag(tag);
+-            if (!command_success_from_args([
+-                "curl", "--config", request_config, "--fail", "--noproxy", "*",
+-                "--connect-timeout", "3", "--max-time", "30", "--request", "PUT",
+-                "--output", "/dev/null", "--url", url
+-            ])) {
+-                log_message("Failed to refresh remote rule set '" + tag + "'", "error");
+-                ok = false;
++        else {
++            let available = null;
++            try {
++                available = json(command_output_from_args([
++                    "curl", "--config", request_config, "--fail", "--noproxy", "*",
++                    "--connect-timeout", "3", "--max-time", "10", "--url",
++                    "http://" + address + "/providers/rules"
++                ]));
++            } catch (e) {}
++            // shortcut: this sing-box build exposes no rule providers; use its scheduled refresh until the API supports them.
++            if (type(available) == "object" && type(available.providers) == "array" && length(available.providers) == 0)
++                log_message("Clash API exposes no rule providers; skipping manual remote refresh", "info");
++            else for (let tag in tags) {
++                let url = "http://" + address + "/providers/rules/" + ruleset_api_tag(tag);
++                if (!command_success_from_args([
++                    "curl", "--config", request_config, "--fail", "--noproxy", "*",
++                    "--connect-timeout", "3", "--max-time", "30", "--request", "PUT",
++                    "--output", "/dev/null", "--url", url
++                ])) {
++                    log_message("Failed to refresh remote rule set '" + tag + "'", "error");
++                    ok = false;
++                }
+             }
+         }
+     }
