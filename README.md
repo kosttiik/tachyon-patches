@@ -12,4 +12,4 @@ Patch 0037 adds examples of domains or IP ranges to the 110 new list labels; exa
 
 Patch 0038 validates community lists against the same catalog used to download them. It also accepts sing-box builds whose Clash API exposes no rule providers: nftables lists still load, while remote sing-box rule sets use their built-in update schedule. A working provider API is still used when available.
 
-Patch 0039 persists verified cached ruleset fingerprints across reboots, waits for the Clash API when refreshing lists, and keeps autostart controls responsive during service startup. Disabling autostart leaves the running service intact. Cached lists are revalidated when their contents or the core metadata change.
+Patch 0039 persists verified cached ruleset fingerprints across reboots and reuses them for identical restored copies, waits for the Clash API when refreshing lists, and keeps autostart controls responsive during service startup. Disabling autostart leaves the running service intact. Cached lists are revalidated when their contents or the core metadata change.

@@ -129,3 +129,18 @@
  }
  
  let mode = ARGV[0] || "";
+--- a/usr/lib/tachyon/service/watchdog.uc
++++ b/usr/lib/tachyon/service/watchdog.uc
+@@ -1500,6 +1500,12 @@
+         if (content == null || content == "") continue;
+         command_success_from_args(["mkdir", "-p", tmp_dir]);
+         if (fs.writefile(tmp_path, content) != null) {
++            if (match(entry, /\.srs$/)) {
++                let rulesets = require("tachyon_core.rulesets");
++                if (rulesets.is_referenceable_srs_file(etc_path) &&
++                    command_success_from_args(["cmp", "-s", etc_path, tmp_path]))
++                    rulesets.remember_srs_file_verified(tmp_path);
++            }
+             push(restored, entry);
+         }
+     }
