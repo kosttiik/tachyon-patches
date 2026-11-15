@@ -1,0 +1,131 @@
+--- a/usr/lib/tachyon/components/updates.uc
++++ b/usr/lib/tachyon/components/updates.uc
+@@ -3482,15 +3482,25 @@
+             ok = false;
+         else {
+             let available = null;
+-            try {
+-                available = json(command_output_from_args([
+-                    "curl", "--config", request_config, "--fail", "--noproxy", "*",
+-                    "--connect-timeout", "3", "--max-time", "10", "--url",
+-                    "http://" + address + "/providers/rules"
+-                ]));
+-            } catch (e) {}
++            for (let attempt = 0; attempt < 30; attempt++) {
++                try {
++                    available = json(command_output_from_args([
++                        "curl", "--config", request_config, "--fail", "--noproxy", "*",
++                        "--connect-timeout", "2", "--max-time", "3", "--url",
++                        "http://" + address + "/providers/rules"
++                    ]));
++                } catch (e) {}
++                if (type(available) == "object")
++                    break;
++                command_success_from_args([ "sleep", "1" ]);
++            }
++            // The core may still be starting after list reload; never treat an unavailable API as proof of an empty provider list.
++            if (type(available) != "object") {
++                log_message("Cannot refresh remote rule sets: Clash API did not become ready", "error");
++                ok = false;
++            }
+             // shortcut: this sing-box build exposes no rule providers; use its scheduled refresh until the API supports them.
+-            if (type(available) == "object" && type(available.providers) == "array" && length(available.providers) == 0)
++            else if (type(available.providers) == "array" && length(available.providers) == 0)
+                 log_message("Clash API exposes no rule providers; skipping manual remote refresh", "info");
+             else for (let tag in tags) {
+                 let url = "http://" + address + "/providers/rules/" + ruleset_api_tag(tag);
+--- a/usr/lib/tachyon/tachyon_core/rulesets.uc
++++ b/usr/lib/tachyon/tachyon_core/rulesets.uc
+@@ -628,22 +628,40 @@
+     return is_populated_srs_file(path) && srs_file_parses(path);
+ }
+ 
+-// Verifying means spawning sing-box, so remember what has already been verified
+-// and skip the spawn while the file is the same one we checked. The marker sits in
+-// tmpfs next to the files it describes, so it cannot outlive them and no verdict
+-// survives the file changing underneath it - which is also why the stamp carries
+-// the mtime and not just the size: a rewrite can land the same length.
++// Persist verification only for cached rulesets, keyed by content and core metadata.
+ const SRS_VERIFY_DIR = getenv("TACHYON_SRS_VERIFY_DIR") || "/tmp/.tachyon-srs-verified";
++const SRS_VERIFY_PERSIST_DIR = getenv("TACHYON_SRS_VERIFY_PERSIST_DIR") || "/etc/tachyon/.srs-verified";
++
++function srs_persistent_file(path) {
++    return index(as_string(path), "/etc/tachyon/rulesets/") == 0;
++}
+ 
++function srs_verify_marker_dir(path) {
++    return srs_persistent_file(path) ? SRS_VERIFY_PERSIST_DIR : SRS_VERIFY_DIR;
++}
++
+ function srs_verify_marker_path(path) {
+-    return SRS_VERIFY_DIR + "/" + hash12(as_string(path)) + ".ok";
++    return srs_verify_marker_dir(path) + "/" + hash12(as_string(path)) + ".ok";
+ }
+ 
+ function srs_file_stamp(path) {
+-    let st = fs.stat(as_string(path));
++    let p = as_string(path);
++    let st = fs.stat(p);
+     if (st == null)
+         return "";
+-    return int(st.size) + ":" + int(st.mtime);
++    let stamp = int(st.size) + ":" + int(st.mtime);
++    if (srs_persistent_file(p)) {
++        let out = as_string(common.command_output_from_args([ "sha256sum", p ]) || "");
++        let hash = match(out, /^([0-9a-f]{64})[ \t]/);
++        if (hash == null)
++            return "";
++        let bin = getenv("TACHYON_SING_BOX_BIN") || "/usr/bin/tachyon-core";
++        let core = fs.stat(bin);
++        if (core == null)
++            return "";
++        stamp += ":" + hash[1] + ":" + int(core.size) + ":" + int(core.mtime);
++    }
++    return stamp;
+ }
+ 
+ function srs_file_already_verified(path) {
+@@ -659,7 +677,7 @@
+     if (stamp == "")
+         return;
+     try {
+-        common.ensure_dir(SRS_VERIFY_DIR);
++        common.ensure_dir(srs_verify_marker_dir(path));
+         common.write_file(srs_verify_marker_path(path), stamp + "\n");
+     } catch (e) {}
+ }
+@@ -673,7 +691,8 @@
+         return false;
+     if (srs_file_already_verified(path))
+         return true;
+-    if (!srs_file_parses(path))
++    let before = srs_file_stamp(path);
++    if (before == "" || !srs_file_parses(path) || before != srs_file_stamp(path))
+         return false;
+     remember_srs_file_verified(path);
+     return true;
+--- a/etc/init.d/tachyon
++++ b/etc/init.d/tachyon
+@@ -3,6 +3,7 @@
+ 
+ START=99
+ USE_PROCD=1
++case "$action" in enable|disable|enabled) unset USE_PROCD ;; esac
+ EXTRA_COMMANDS="retry_start_on_wan_up"
+ EXTRA_HELP="        retry_start_on_wan_up Retry failed cold start after WAN comes up\n"
+ 
+--- a/usr/lib/tachyon/service/lifecycle.uc
++++ b/usr/lib/tachyon/service/lifecycle.uc
+@@ -2060,11 +2060,7 @@
+ }
+ 
+ function disable_service() {
+-    let res = command_status_from_args([ SERVICE_INIT, "disable" ]);
+-    uci_core.set(CONFIG_NAME, "settings", "enabled", "0");
+-    uci_core.commit(CONFIG_NAME);
+-    stop();
+-    return res;
++    return command_status_from_args([ SERVICE_INIT, "disable" ]);
+ }
+ 
+ let mode = ARGV[0] || "";
